@@ -1,0 +1,8 @@
+{
+  "solution": {
+    "path": "HackCreality.sln",
+    "projects": [
+      "HackCreality2.vcxproj"
+    ]
+  }
+}

@@ -1,4 +1,5 @@
 #pragma once
+
 #include <iostream>
 #include <fstream>
 #include <bitset>
@@ -10,10 +11,10 @@
 #include <stdio.h>
 #include <vector>
 #include "BitmapEx.h"
-#include <filesystem>
 #include <algorithm>
 #include <cerrno>
-
+#include <filesystem>
+#include <iostream>
 
 const std::string CURRENT_PATH = std::filesystem::current_path().string();
 
@@ -175,10 +176,8 @@ int generate_ctb_from_encrypted_layers(const std::vector<std::uint32_t>& layeri_
     const std::vector<std::string> encryptd_layers,
     std::string ctbfile, int no_layers);
 
-
-
 std::string extract_square(const std::string& layer, int side);
-
+std::string extract_square(const std::string& layer, int dim[], int pos[]);
 
 
 void put_square(std::string& layer, const std::string& square, int side);

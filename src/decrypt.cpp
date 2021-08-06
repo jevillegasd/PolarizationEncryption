@@ -1,9 +1,5 @@
-#pragma once
-
 #include "../include/decrypt.h"
 #include "../include/aes_ctr.h"
-
-
 
 int duplicatefile(std::string from, std::string to)
 {
@@ -23,7 +19,6 @@ int duplicatefile(std::string from, std::string to)
     }
 }
 
-
 uint32_t decode(std::stringstream& strm, std::string run_byte, int n)
 {
     std::string temp;
@@ -37,8 +32,6 @@ uint32_t decode(std::stringstream& strm, std::string run_byte, int n)
 
     return (uint32_t)bset.to_ulong();
 }
-
-
 
 uint32_t handle_decode(std::stringstream& strm)
 {
@@ -68,8 +61,6 @@ uint32_t handle_decode(std::stringstream& strm)
     }
 }
 
-
-
 inline const char* hex2bin_lookup(char c)
 {
     // TODO handle default / error
@@ -95,8 +86,6 @@ inline const char* hex2bin_lookup(char c)
     }
 }
 
-
-
 inline std::string bin2hex_lookup(std::string str)
 {
     if (str == "0000") return "0";
@@ -118,14 +107,11 @@ inline std::string bin2hex_lookup(std::string str)
     else return " ";
 }
 
-
-
 inline std::string bin2hex(std::string str)
 {
     return (bin2hex_lookup(str.substr(0, 4)) +
         bin2hex_lookup(str.substr(4, 4)));
 }
-
 
 std::string hex2bin(const std::string& hex)
 {
@@ -134,9 +120,6 @@ std::string hex2bin(const std::string& hex)
         bin += hex2bin_lookup(hex[i]);
     return bin;
 }
-
-
-
 
 std::string binstr2hexstr(const std::string& bitmap_str)
 {
@@ -162,8 +145,6 @@ std::string binstr2hexstr(const std::string& bitmap_str)
     }
     return hex_bitmap_str;
 }
-
-
 
 std::string bitrun_to_1bit_depth(const std::string& bitmap_str)
 {
@@ -191,8 +172,6 @@ std::string bitrun_to_1bit_depth(const std::string& bitmap_str)
     return hex_bitmap_str;
 }
 
-
-
 std::string bitrun_to_8bit_depth(const std::string& bitmap_str)
 {
     std::string hex_bitmap_str = EIGHTBITDEPTHHEADER;
@@ -219,8 +198,6 @@ std::string bitrun_to_8bit_depth(const std::string& bitmap_str)
 
     return hex_bitmap_str;
 }
-
-
 
 std::string layer_hex_to_bitrun(const std::string& layer)
 {
@@ -275,7 +252,6 @@ std::string layer_hex_to_bitrun(const std::string& layer)
     return bitmap_str;
 }
 
-
 // convert from bitrun 00001111 to hex 0F and then write file as hex with appropriate headers
 // decided by bitdepth.
 void write_bitmap(std::string& layer, const char* outfname, int bitdepth, bool is_bitrun = false)
@@ -311,8 +287,6 @@ void write_bitmap(std::string& layer, const char* outfname, int bitdepth, bool i
         fclose(fptr);
     }
 }
-
-
 
 std::string bitmap_to_bitrun(const std::string& bitmap_str, int depth)
 {
@@ -389,8 +363,6 @@ std::string bitmap_to_bitrun(const std::string& bitmap_str, int depth)
     return bitmap_run;
 }
 
-
-
 std::string space(const std::string& str, int size)
 {
     int i = 1;
@@ -404,9 +376,6 @@ std::string space(const std::string& str, int size)
 
     return s;
 }
-
-
-
 
 Encode_RLE7_Data encode_rle7(const std::string& bitmap_str)
 {
@@ -458,8 +427,6 @@ Encode_RLE7_Data encode_rle7(const std::string& bitmap_str)
     return R;
 }
 
-
-
 void scale_all_bitmaps(int no_layers, int scale, int no_rounds, std::string type)
 {   
     int h_adjust = 105;
@@ -477,7 +444,9 @@ void scale_all_bitmaps(int no_layers, int scale, int no_rounds, std::string type
             std::string name;
             name = CURRENT_PATH + "\\data\\layers\\layer" + std::to_string(i + 1) + "_" + type + ".bmp";
 
-            bitmapEx.Load(_T(name.c_str()));
+            //bitmapEx.Load(_T(name.c_str()));
+            bitmapEx.Load(name.c_str());
+
 
             int n = (scale - 1) / 2;
             bitmapEx.Scale(scale * 100, scale * 100);
@@ -485,14 +454,14 @@ void scale_all_bitmaps(int no_layers, int scale, int no_rounds, std::string type
 
 
             name = CURRENT_PATH + "\\data\\layers\\layer" + std::to_string(i + 1) + "_" + type + ".bmp";
-            bitmapEx.Save(_T(name.c_str()));
+            //bitmapEx.Save(_T(name.c_str()));
+            bitmapEx.Save(name.c_str());
         }
     }
     
 
     std::cout << no_layers << " bitmap scaling successful" << std::endl;
 }
-
 
 
 // void draw_bitmap(HWND Hwnd)
@@ -505,8 +474,6 @@ void scale_all_bitmaps(int no_layers, int scale, int no_rounds, std::string type
 //     std::cin.get();
 
 // }
-
-
 
 void generate_all_bitmaps_from_layer_vec_data(const std::vector<std::vector<uint8_t>>& all_layers_vec)
 {
@@ -525,9 +492,6 @@ void generate_all_bitmaps_from_layer_vec_data(const std::vector<std::vector<uint
         i++;
     }
 }
-
-
-
 
 void generate_bitmap_from_layer_str_data(std::string& layer_str, int square_side, std::string type, int layer_no)
 {
@@ -715,6 +679,18 @@ int generate_ctb_from_encrypted_layers(const std::vector<std::uint32_t>& layeri_
 }
 
 
+std::string extract_square(const std::string& layer, int dim[], int pos[]) {
+    int x = pos[0];
+    int y = pos[1]; 
+
+    std::string mini_bmp = "";
+    for (int i = x; i < (x + dim[0]); i++)
+    {
+        int idx_start = (i * SCREEN_HEIGHT) + y; // -- move to appropriate line and then add y to move to start of pixel
+        mini_bmp += layer.substr(idx_start, dim[1]);    // -- add set of pixels
+    }
+    return mini_bmp;
+}
 
 std::string extract_square(const std::string& layer, int side)
 {
@@ -789,7 +765,7 @@ void paint_surrounding(std::string& layer_str, int square_side, std::string type
 std::string generate_decrypting_square(uint8_t* key, int nonce)
 {
     std::string pt(SCREEN_HEIGHT * SCREEN_WIDTH, '1'); // Change to '0' for XOR. Currently XNOR
-    return AES_CTR(pt, key, nonce); 
+    return aes_ctr(pt, key, nonce); 
 }
 
 
@@ -839,7 +815,7 @@ void compare_generated_vs_original( const std::string & original_lyr,
 }
 
 
-std::vector<std::vector<uint32_t>> printer_encrypt()
-{
-
-}
+//std::vector<std::vector<uint32_t>> printer_encrypt()
+//{
+//    return 0;
+//}

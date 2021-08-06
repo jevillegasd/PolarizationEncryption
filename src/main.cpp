@@ -1,15 +1,12 @@
 #include "../include/decrypt.h"
-//#include "../include/BitmapEx.h"
+#include "../include/BitmapEx.h"
 #include "../include/ctb_file.h"
-//#include "../include/aes_ctr.h"
+#include "../include/aes_ctr.h"
 
-
-extern "C" void crypt_86(uint32_t key, uint32_t iv, uint8_t data[]);
-
+//extern "C" void crypt_86(uint32_t key, uint32_t iv, uint8_t data[]);
 
 std::vector<double> v;
 double* a = &v[0];
-
 
 int main()
 {
@@ -32,63 +29,44 @@ int main()
 
     uint8_t* test_array = &test[0];
 
-    uint32_t key = 5000;
-
     uint32_t iv = 0;
 
-    crypt_86(key, iv, test_array);
+    //crypt_86(key, iv, test_array);
 
+    
+    uint8_t key[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF};
 
+    
+    std::string encryptd_lyr, original_lyr, generated_lyr;
+    std::string layer_str, plain_text, cipher_text;
 
+    int layer_no = 1;
+    uint64_t nonce = 0;
+    int extract_square_dim = 10; // unit of pixels
 
+    for (auto layer : layers_vec)
+    {
+        // Build  a bitmap from from the layer data
+         original_lyr = get_bitrun(layer);
 
-
-    //uint8_t key[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF };
-
-    //
-    //std::string encryptd_lyr, original_lyr, generated_lyr;
-    //std::string layer_str, plain_text, cipher_text;
-
-    //int layer_no = 1;
-    //uint64_t nonce = 0;
-    //int extract_square_dim = 10; // unit of pixels
-
-
-    //for (auto layer : layers_vec)
-    //{
-    //     original_lyr = get_bitrun(layer);
+         // Extract a section from the bitmap 
+         plain_text = extract_square(original_lyr, extract_square_dim);
+         cipher_text = aes_ctr(plain_text, key, nonce + layer_no);
+         encryptd_lyr = original_lyr;
+         put_square(encryptd_lyr, cipher_text, extract_square_dim);
+         
+         generated_lyr = generate_decrypting_layer(key, nonce + layer_no, extract_square_dim);
+         //compare_generated_vs_original(original_lyr, encryptd_lyr, generated_lyr, layer_no); 
  
-
-    //     plain_text = extract_square(original_lyr, extract_square_dim);
- 
-
-    //     cipher_text = AES_CTR(plain_text, key, nonce + layer_no);
-    //     
-
-    //     encryptd_lyr = original_lyr;
+         generate_bitmap_from_layer_str_data(original_lyr, extract_square_dim, "original", layer_no); 
+         generate_bitmap_from_layer_str_data(encryptd_lyr, extract_square_dim, "printer", layer_no);
+         
+         generate_bitmap_from_layer_str_data(generated_lyr, extract_square_dim, "lcd", layer_no);
 
 
-    //     put_square(encryptd_lyr, cipher_text, extract_square_dim);
- 
-
-    //     //generated_lyr = generate_decrypting_layer(key, nonce + layer_no, extract_square_dim);
- 
- 
-    //     //compare_generated_vs_original(original_lyr, encryptd_lyr, generated_lyr, layer_no);
- 
- 
-    //     //generate_bitmap_from_layer_str_data(original_lyr, extract_square_dim, "original", layer_no);
- 
- 
-    //     generate_bitmap_from_layer_str_data(encryptd_lyr, extract_square_dim, "printer", layer_no);
- 
- 
-    //     //generate_bitmap_from_layer_str_data(generated_lyr, extract_square_dim, "lcd", layer_no);
-
-
-    //     layer_no++;
-    //}
+         layer_no++;
+    }
 
 
     //{
