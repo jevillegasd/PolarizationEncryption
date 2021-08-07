@@ -79,8 +79,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(OPENCV_DIR)\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(OPENCV_DIR)\x64\vc14\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\opencv-4.5.3-vc14_vc15\opencv\build\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\opencv-4.5.3-vc14_vc15\opencv\build\x64\vc15\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -154,16 +154,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="HackCreality.cpp" />
     <ClCompile Include="src\aes.cpp" />
     <ClCompile Include="src\aes_ctr.cpp" />
     <ClCompile Include="src\ctb_file.cpp" />
     <ClCompile Include="src\gf28.cpp" />
+    <ClCompile Include="src\HackCreality.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Hackcreality.h" />
+    <ClInclude Include="include\aes.h" />
     <ClInclude Include="include\aes_ctr.h" />
     <ClInclude Include="include\ctb_file.h" />
+    <ClInclude Include="include\gf28.h" />
+    <ClInclude Include="include\Hackcreality.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

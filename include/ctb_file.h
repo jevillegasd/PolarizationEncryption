@@ -12,6 +12,7 @@
 #include <stdio.h>  //For file operations
 #include <vector>
 #include <cstring>
+#include <bitset>
 #include "aes_ctr.h"
 
 #define STRB2BIN "%c%c%c%c%c%c%c%c"
@@ -76,3 +77,11 @@ cv::Mat getLayerImageRL7(std::vector<uint8_t> data, int width, int height);
 uint32_t decode(std::vector<uint8_t>::iterator& it, int numbytes);
 layer_bmp encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int resolution);
 cv::Mat enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res);
+std::vector<uint8_t> encrypt_single_layer(uint32_t key, std::vector<uint8_t> data, uint32_t iv);
+std::vector<std::vector<uint8_t>> Encrypt_Decrypt_86(std::vector<std::vector<uint8_t>> data, uint32_t key);
+inline void push_encoded(vector<uint8_t>& encoded, bitset<8>::reference& c, uint32_t runlen, bitset<2>& ref);
+vector<uint8_t> Encode_RLE7(vector<uint8_t>& unencoded);
+inline uint32_t get_runlen(vector<uint8_t>::iterator& it);
+vector<uint8_t> Decode_RLE7(vector<uint8_t>& encoded);
+
+

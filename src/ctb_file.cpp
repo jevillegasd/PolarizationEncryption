@@ -252,6 +252,8 @@ ctbData get_layer_data_from_ctb(const char* filename)
     return ctb_data;
 }
 
+
+
 //This function draws an image following the BMP file specification for a color image.
 cv::Mat getPreview(std::vector<uint16_t> data, int width, int height) {
     cv::Mat image(height , width, CV_8UC3);
@@ -348,7 +350,7 @@ cv::Mat getLayerImageRL7(std::vector<uint8_t> data, int width, int height) {
                 run_length = decode(it, 3);
             else
             {
-                std::cout << "Unrecognized RLE byte" << std::endl;
+                std::cout << "Unrecognized RLE7 byte" << std::endl;
                 return image;
             }
 
@@ -391,6 +393,7 @@ uint32_t decode(std::vector<uint8_t>::iterator& it, int numbytes)
     return length;
 }
 
+
 layer_bmp encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int res) {
     int numx = (int) ceil(area.width  * 1. / res);
     int numy = (int) ceil(area.height * 1. / res);
@@ -409,14 +412,14 @@ layer_bmp encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t i
     cv::Mat enci = enc2bmp(enc,area.size(),res);
     
 
-    //Build encripting layer image.
+    //Build encrypting layer image.
     cv::Mat layer_enc(image.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
     cv::Mat submat1 = layer_enc(area);
     enci.copyTo(submat1);
     layer_enc.copyTo(out.layer_enc);
 
 
-    //Encryption of pt and build encryoted image
+    //Encryption of pt and build encrypted image
     cv::Mat layer_ct(image.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
     image.copyTo(layer_ct);
     cv::bitwise_xor(image, layer_enc, layer_ct);
@@ -441,4 +444,310 @@ cv::Mat enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res) {
         }
     }
     return enci;
+}
+
+
+
+std::vector<uint8_t> encrypt_single_layer(uint32_t key, std::vector<uint8_t> data, uint32_t iv)
+{
+    /// <summary>
+    /// This function encrypts or decrypts a layer using an XOR based stream cipher. 
+    /// This means that decryption and encryption uses the same mechanism. 
+    /// So if you pass an encrypted layer through this function, you get out a decrypted layer and vice versa.
+    /// </summary>
+    /// <param name="key"> Key that was used to encrypt/decrypt the data</param>
+    /// <param name="data"> Uint8_t vector of the layer data</param>
+    /// <param name="iv"> The current layer index i.e 0 for bottom layer, 1 for the next layer and so on</param>
+    /// <returns> Function returns a vector of the encrypted/decrypted layer data</returns>
+
+
+    std::vector<uint8_t> result;
+
+    // Multiplication and Addition is in modulo 2^32. operations * and + are automatically modulo 2^32 for uint32_t.
+    uint32_t c = key * 0x2D83'CDAC + 0xD8A8'3423;
+    uint32_t X = (iv * 0x1E15'30CD + 0xEC3D'47CD) * c;
+
+    int n = 0;
+    while (n < data.size())
+    {
+        for (int i = 0; i < 4; i++) // The data from the layer data is read in Little Endiannes format
+        {
+            if (n < data.size())
+            {
+                result.push_back(data[n] ^ (uint8_t)(X >> (i * 8)));
+                n++;
+            }
+            else break;
+        }
+
+        X = X + c;
+    }
+
+    return result;
+}
+
+
+
+std::vector<std::vector<uint8_t>> Encrypt_Decrypt_86(std::vector<std::vector<uint8_t>> data, uint32_t key)
+{
+    /// <summary>
+    /// This function takes in all layers and encrypt/decrypt them one after the other by 
+    /// calling te encrypt_layer function and passing in the correct iv parameter for 
+    /// each layer.
+    /// </summary>
+    /// <param name="data">layers data</param>
+    /// <param name="key">encryption key</param>
+    /// <returns></returns>
+    std::vector<std::vector<uint8_t>> result;
+
+    uint32_t iv = 0;
+
+
+    for (auto layer : data)
+    {
+        result.push_back(encrypt_single_layer(key, layer, iv));
+
+        iv++;
+    }
+
+    return result;
+}
+
+
+inline void push_encoded(vector<uint8_t>& encoded, bitset<8>::reference& c, uint32_t runlen, bitset<2>& ref)
+{
+    if (runlen == 1)
+    {
+        if (c == ref[0]) encoded.push_back(0x00);
+        else encoded.push_back(0x7F);
+    }
+
+    else
+    {
+        if (c == ref[0]) encoded.push_back(0x80);
+        else encoded.push_back(0xFF);
+
+        if (runlen < 128)
+            encoded.push_back(static_cast<uint8_t>(runlen));
+
+        else if (runlen < 268435456) // 2 ^ 28 (max acceptable runlen)
+        {
+            int n;
+            if (runlen < 16384) n = 2;          // 2 ^ 14
+            else if (runlen < 2097152) n = 3;   // 2 ^ 21
+            else n = 4;                         // 2 ^ 28
+
+
+            vector<uint8_t> a;
+
+            // -- Create bytes (uint8_t) from runlen
+            for (int j = n - 1; j >= 0; j--)
+                a.push_back(static_cast<uint8_t>(runlen >> (j * 8)));
+
+            // -- Set bit 7 - i
+            for (int k = 0; k < (n - 1); k++)
+                a[0] |= ( 1 << (7 - k) );
+
+            // -- Push encoded bytes
+            for (int l = 0; l < n; l++)
+                encoded.push_back(a[l]);
+
+        }
+        else
+        {
+            std::cout << "Invalid Run Length: " << runlen << std::endl;
+        }
+    }
+
+    if (VERBOSE)
+        std::cout << "(Encode_RLE7) runlen: " << dec << runlen << std::endl;
+}
+
+
+
+// RLE7 Encoding scheme -- optimized for memory
+vector<uint8_t> Encode_RLE7(vector<uint8_t>& unencoded)
+{
+    vector<uint8_t> encoded;
+    auto it = unencoded.begin(); 
+    
+    bitset<2> ref("10"); // -- bitset::reference to 1 or 0
+    bitset<8> initl(*it); 
+    bitset<8>::reference c = initl[7]; // -- Starting bit
+
+    int id = 0;
+    // -- Choose starting reference bit according to the starting bit
+    if (c == ref[0])  c = ref[id];
+    else              c = ref[++id % 2];
+
+    bitset<8> curr(*it);
+    uint32_t runlen = 0;
+
+    while (it != unencoded.end())
+    {
+        for (int i = 7; i >= 0; i--)
+        {
+            if (curr[i] == c)  runlen += 1;
+            else
+            {
+                push_encoded(encoded, c, runlen, ref);
+
+                c = ref[++id % 2]; // - Toggle previous bit
+                runlen = 1;        // - Reset runlen
+            }     
+        }
+
+        it++;
+        // -- If end of vector unencoded, then push final encoded data
+        if (it != unencoded.end())  curr = *it;
+        else push_encoded(encoded, c, runlen, ref);
+    }
+
+    if (VERBOSE)
+        std::cout << "Encoded length: " << dec << encoded.size() << std::endl;
+    return encoded;
+}
+
+
+// -- Get current run length
+inline uint32_t get_runlen(vector<uint8_t>::iterator& it)
+{
+    it++;
+    uint8_t dat = *it;
+    uint32_t run_length = 0;
+
+    if (!(dat >> 7))
+        run_length = decode(it, 0);
+    else if ((dat >> 6) == 0b10)
+        run_length = decode(it, 1);
+    else if ((dat >> 5) == 0b110)
+        run_length = decode(it, 2);
+    else if ((dat >> 4) == 0b1110)
+        run_length = decode(it, 3);
+    else
+    {
+        std::cout << "Unrecognized RLE7 Byte" << std::endl;
+    }
+
+    return run_length;
+}
+
+
+// - RLE7 Decompressing/Decoding -- implementation for memory optimization
+vector<uint8_t> Decode_RLE7(vector<uint8_t>& encoded)
+{
+    vector<uint8_t> decoded;
+
+    bitset<8> buf;
+    bitset<2> ref("10");
+
+    int a = 0;
+    int n = 0;
+    int rem = 0;
+    int stop = 0;
+    uint32_t sum = 0;
+
+    for (auto it = encoded.begin(); it != encoded.end(); ++it) 
+    {
+        uint8_t run;
+        uint8_t dat = *it;
+        uint32_t run_length;
+
+        run = dat & 0x80;
+        auto pixel = ((dat & 0x7F) == 0x00) ? ref[0] : ref[1];
+
+        if (run)
+        {
+            run_length = get_runlen(it);
+
+            if (run_length >= 8)
+            {
+                a = (8 - stop) % 8;
+                n = (run_length - a) / 8;
+                rem = (run_length - a) % 8;
+            }
+            else
+            {
+                n = 0;
+                a = (8 - stop) % 8;
+                rem = run_length - a;
+                rem = (rem < 0) ? 0 : rem;
+            }
+            
+            if (stop != 0)
+            {
+                while ((stop < 8) && (a > 0))
+                {
+                    buf[stop] = pixel;
+                    stop++; a--;
+                }
+                stop = stop % 8;
+                if (stop == 0) decoded.push_back(static_cast<uint8_t>(buf.to_ulong()));
+            }
+
+            if (n > 0)
+            {
+                if (pixel == ref[0])
+                {
+
+                    for (int i = 0; i < n; i++)
+                        decoded.push_back(0x00);
+                    if (VERBOSE)
+                        std::cout << "pushed 0: runlen " << dec << run_length << "no of elements: " << n << "\n";
+                }
+                else
+                {
+                    for (int i = 0; i < n; i++)
+                        decoded.push_back(0xFF);
+                    if (VERBOSE)
+                        std::cout << "pushed 1: runlen " << dec << run_length << "no of elements: " << n << "\n";
+                }
+            }
+
+            if (rem > 0)
+            {
+                for (int i = 0; i < rem; i++)
+                {
+                    buf[i] = pixel;
+                    std::cout << "inside rem\n";
+                }
+                stop = rem;
+            }
+            
+
+            sum += run_length;
+        }
+        else
+        {
+            run_length = 1;
+
+            if (stop != 0)
+            {
+                buf[stop] = pixel;
+                stop++;
+
+                stop = stop % 8;
+
+                if (stop == 0)
+                {
+                    decoded.push_back(static_cast<uint8_t>(buf.to_ulong()));
+                }
+            }
+            else
+            {
+                buf[0] = pixel;
+                stop++;
+            }
+            
+            sum++;
+        }
+    }
+
+    if (VERBOSE)
+    {
+        std::cout << "Total bits: " << std::dec << sum << std::endl;
+        std::cout << "Decoded data size (bytes): " << dec << decoded.size() << std::endl;
+    }
+    
+    return decoded;
 }
