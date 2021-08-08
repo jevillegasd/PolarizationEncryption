@@ -20,7 +20,8 @@ const std::string STRMAINMENU("\nHack Creality main menu. Select an option. "
     "\n\t1 - Load a ctb file."          "\n\t2 - Decrypt ctb file."
     "\n\t3 - Encrypt ctb file."         "\n\t4 - Generate decryptor images."
     "\n\t5 - Setup printing sequence."  "\n\t6 - Run printer decryptor."
-    "\n\t7 - Display test image."       "\n\tQ - Exit.\n>> ");
+    "\n\t7 - Display test image."       "\n\t8 - Test RLE enconding."
+    "\n\tQ - Exit.\n>> ");
 
 struct encryption_prop {
 
@@ -71,3 +72,7 @@ int generateDecryptorImages(ctbData myCTB, encryption_prop prop, filesystem::pat
 
 int messageListener(int* option);
 void messageParser(int* option);
+
+
+
+int RLE_encoder();

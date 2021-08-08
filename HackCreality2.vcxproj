@@ -24,7 +24,7 @@
     <ProjectGuid>{0f3eb057-164a-4128-a773-6656a159f7b3}</ProjectGuid>
     <RootNamespace>HackCreality</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>HackCreality2</ProjectName>
+    <ProjectName>HackCreality</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

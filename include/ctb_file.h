@@ -49,6 +49,8 @@ constexpr int BITMAP_HEADER_SIZE_DEPTH_8_1 = 62;
 constexpr int BITMAP_HEADER_SIZE_DEPTH_24 = 54;
 
 #include <opencv2/opencv.hpp>
+//#include <opencv2/imgproc/imgproc.hpp>
+
 typedef  std::vector<uint8_t> ctbLayer;
 
 using namespace std;

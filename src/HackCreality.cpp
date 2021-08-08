@@ -70,6 +70,9 @@ int messageListener(int* option)
     case '7':
         *option += 7;
         break;
+    case '8':
+        *option += 8;
+        break;
     case 'q'|'Q': {
         *option = 0;
         return 0;
@@ -337,16 +340,14 @@ void plotandwait(Mat image) {
 
 }
 
-
-
-int generateDecryptorImages(ctbData ctbData , encryption_prop prop, filesystem::path save_path){
+int generateDecryptorImages(ctbData myCTB , encryption_prop prop, filesystem::path save_path){
     filesystem::path p(save_path);
     p.remove_filename();
     p += L"data\\layers\\";
 
     int extract_dim = prop.extract_dim;
-    int im_width = ctbData.layer_width;
-    int im_heigth = ctbData.layer_heigth;
+    int im_width = myCTB.layer_width;
+    int im_heigth = myCTB.layer_heigth;
     int i_iniLayer = prop.i_inilayer;
     int i_endLayer = prop.i_endLayer;
     int res = prop.res;
@@ -355,17 +356,17 @@ int generateDecryptorImages(ctbData ctbData , encryption_prop prop, filesystem::
 
 
     //Only decrypt the layers between iniLayer and endLayer
-    vector<ctbLayer>::iterator it_iniLayer = ctbData.all_layer_data.begin() + \
-        min(i_iniLayer, (int)ctbData.all_layer_data.size());
+    vector<ctbLayer>::iterator it_iniLayer = myCTB.layer_data.begin() + \
+        min(i_iniLayer, (int)myCTB.layer_data.size());
     vector<ctbLayer>::iterator it_endLayer = it_iniLayer + \
-        min(i_iniLayer + i_endLayer, (int)ctbData.all_layer_data.size());
+        min(i_iniLayer + i_endLayer, (int)myCTB.layer_data.size());
 
     cv::Rect area((im_width - extract_dim) / 2, (im_heigth - extract_dim) / 2, \
         extract_dim, extract_dim);
     encProp.area = area;
 
     int layer_no = 1;
-    for (vector<ctbLayer>::iterator it = ctbData.all_layer_data.begin(); it != ctbData.all_layer_data.end(); it++) {
+    for (vector<ctbLayer>::iterator it = myCTB.layer_data.begin(); it != myCTB.layer_data.end(); it++) {
         ctbLayer layer = *it;
 
         // Build bitmaps from the layer data and their encrypted versions
@@ -399,5 +400,14 @@ int generateDecryptorImages(ctbData ctbData , encryption_prop prop, filesystem::
     }
     destroyWindow("draw");
     cout << "All transformed bmp files were generated. Generating new ctb --- Not really..";
+    return 0;
+}
+
+
+int RLE_encoder(){
+    cv::Mat image = myCTB.preview1;
+    plotandwait( image);
+
+    string strImage = mat2bitrun(image);
     return 0;
 }
