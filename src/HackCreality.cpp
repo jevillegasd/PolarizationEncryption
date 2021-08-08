@@ -209,7 +209,7 @@ void messageParser(int* option)
 
 
 // File Open dialog window
-BOOL openFileDialog(wstring* file_name)
+int openFileDialog(wstring* file_name)
 {
     CoInitialize(NULL);
     IFileDialog *pfd = nullptr;     //File Dialog
@@ -260,12 +260,6 @@ cv::Mat rotateImage(Mat image, double angle) {
     warpAffine(image, res, rot, bounding_box.size());
     return res;
 }
-
-
-
-//Covert a wide string to string
-
-
 
 
 //Display an image in the main screen not full_screen
@@ -340,14 +334,14 @@ void plotandwait(Mat image) {
 
 }
 
-int generateDecryptorImages(ctbData myCTB , encryption_prop prop, filesystem::path save_path){
+int generateDecryptorImages(ctbData CTBData , encryption_prop prop, filesystem::path save_path){
     filesystem::path p(save_path);
     p.remove_filename();
     p += L"data\\layers\\";
 
     int extract_dim = prop.extract_dim;
-    int im_width = myCTB.layer_width;
-    int im_heigth = myCTB.layer_heigth;
+    int im_width = CTBData.layer_width;
+    int im_heigth = CTBData.layer_heigth;
     int i_iniLayer = prop.i_inilayer;
     int i_endLayer = prop.i_endLayer;
     int res = prop.res;
@@ -355,18 +349,18 @@ int generateDecryptorImages(ctbData myCTB , encryption_prop prop, filesystem::pa
     uint8_t* key{ prop.key };
 
 
-    //Only decrypt the layers between iniLayer and endLayer
-    vector<ctbLayer>::iterator it_iniLayer = myCTB.layer_data.begin() + \
-        min(i_iniLayer, (int)myCTB.layer_data.size());
+    
+    vector<ctbLayer>::iterator it_iniLayer = CTBData.all_layer_data.begin() + \
+        min(i_iniLayer, (int)CTBData.layer_data.size());
     vector<ctbLayer>::iterator it_endLayer = it_iniLayer + \
-        min(i_iniLayer + i_endLayer, (int)myCTB.layer_data.size());
+        min(i_iniLayer + i_endLayer, (int)CTBData.layer_data.size());
 
     cv::Rect area((im_width - extract_dim) / 2, (im_heigth - extract_dim) / 2, \
         extract_dim, extract_dim);
     encProp.area = area;
 
     int layer_no = 1;
-    for (vector<ctbLayer>::iterator it = myCTB.layer_data.begin(); it != myCTB.layer_data.end(); it++) {
+    for (vector<ctbLayer>::iterator it = CTBData.all_layer_data.begin(); it != CTBData.all_layer_data.end(); it++) {
         ctbLayer layer = *it;
 
         // Build bitmaps from the layer data and their encrypted versions
@@ -375,6 +369,7 @@ int generateDecryptorImages(ctbData myCTB , encryption_prop prop, filesystem::pa
 
         int ctr = nonce + layer_no / res;
 
+        //Only modify the layers between iniLayer and endLayer
         BOOL encrypt = (it >= it_iniLayer && it < it_endLayer);
         if (encrypt)
             my_layer_bmp = myCTB.encrypt_area(imlayer, area, key, ctr, res);
@@ -384,6 +379,13 @@ int generateDecryptorImages(ctbData myCTB , encryption_prop prop, filesystem::pa
             my_layer_bmp.layer_enc = \
                 cv::Mat(imlayer.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
         }
+
+        // WORK
+
+        /* Instead of generating sets of bitmaps, we can  just build layer by layer the new ctb file
+        without ever needing to have the complete description of  all the layers in memory. 
+        */
+
 
         //string file = string(filepath.begin(), filepath.end()) + "pt_lay" + to_string(layer_no)+".bmp";
         filesystem::path filepath = p / ("pt_lay" + to_string(layer_no) + ".bmp");
@@ -400,14 +402,5 @@ int generateDecryptorImages(ctbData myCTB , encryption_prop prop, filesystem::pa
     }
     destroyWindow("draw");
     cout << "All transformed bmp files were generated. Generating new ctb --- Not really..";
-    return 0;
-}
-
-
-int RLE_encoder(){
-    cv::Mat image = myCTB.preview1;
-    plotandwait( image);
-
-    string strImage = mat2bitrun(image);
     return 0;
 }
