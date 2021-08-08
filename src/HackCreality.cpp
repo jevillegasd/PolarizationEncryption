@@ -100,18 +100,18 @@ void messageParser(int* option)
             if (openFileDialog(&file_name)) 
             {
                 in_ctb.assign(file_name);
-                myCTB.prep_ctb_file(in_ctb, 1);
+                myCTB.read_CTB(in_ctb);
 
-                if (myCTB.m_ctb_data.encrypt_key != 0x0000'0000)
+                if (myCTB.get_key() != 0x0000'0000)
                 {
                     std::cout << "File is encrypted..." << std::endl;
                 }
 
-                if (myCTB.m_ctb_data.all_layer_data.size() != 0) 
+                if (myCTB.get_all_layers().size() != 0) 
                 {
                     std::cout << "Plotting preview image ...";
-                    plotandwait(myCTB.m_ctb_data.preview1);
-                    cout << "\nCTB file opened. ";
+                    plotandwait(myCTB.get_preview1());
+                    std::cout << "\nCTB file opened. ";
                 }
             
             }
@@ -125,7 +125,7 @@ void messageParser(int* option)
             if (openFileDialog(&file_name))
             {
                 in_ctb.assign(file_name);
-                myCTB.prep_ctb_file(in_ctb, 0);
+                myCTB.read_CTB(in_ctb);
 
                 wstring output_fname;
 
@@ -146,7 +146,7 @@ void messageParser(int* option)
             if (openFileDialog(&file_name))
             {
                 in_ctb.assign(file_name);
-                myCTB.prep_ctb_file(in_ctb, 0);
+                myCTB.read_CTB(in_ctb);
 
                 wstring output_fname;
                 uint32_t key = 0;
@@ -180,7 +180,7 @@ void messageParser(int* option)
         case 4: 
         {
             *option = 0;
-            generateDecryptorImages(myCTB.m_ctb_data,  encProp, in_ctb);
+            generateDecryptorImages(myCTB,  encProp, in_ctb);
             break;
         }
         case 7: 
@@ -339,45 +339,59 @@ void plotandwait(Mat image) {
 
 
 
-int generateDecryptorImages(ctbData ctbData , encryption_prop prop, filesystem::path save_path){
+int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path save_path)
+{
+    if (!myCtb.ready())
+    {
+        std::cout << "No ctb file loaded yet. Returning ..." << std::endl;
+        return -1;
+    }
+
     filesystem::path p(save_path);
     p.remove_filename();
     p += L"data\\layers\\";
 
     int extract_dim = prop.extract_dim;
-    int im_width = ctbData.layer_width;
-    int im_heigth = ctbData.layer_heigth;
+    int im_width = myCtb.get_width();
+    int im_heigth = myCtb.get_height();
     int i_iniLayer = prop.i_inilayer;
     int i_endLayer = prop.i_endLayer;
     int res = prop.res;
     int nonce = prop.nonce;
     uint8_t* key{ prop.key };
 
+    auto all_layers = myCtb.get_all_layers();
+    int no_layers   = myCtb.get_no_layers();
+    auto it_end     = all_layers.end();
+    auto it_begin   = all_layers.begin();
 
     //Only decrypt the layers between iniLayer and endLayer
-    vector<ctbLayer>::iterator it_iniLayer = ctbData.all_layer_data.begin() + \
-        min(i_iniLayer, (int)ctbData.all_layer_data.size());
+    vector<ctbLayer>::iterator it_iniLayer = it_begin + \
+                                             min(i_iniLayer, no_layers);
+
     vector<ctbLayer>::iterator it_endLayer = it_iniLayer + \
-        min(i_iniLayer + i_endLayer, (int)ctbData.all_layer_data.size());
+                                             min( (i_iniLayer + i_endLayer), no_layers);
 
     cv::Rect area((im_width - extract_dim) / 2, (im_heigth - extract_dim) / 2, \
         extract_dim, extract_dim);
     encProp.area = area;
 
     int layer_no = 1;
-    for (vector<ctbLayer>::iterator it = ctbData.all_layer_data.begin(); it != ctbData.all_layer_data.end(); it++) {
+    for (vector<ctbLayer>::iterator it = it_begin; it != it_end; it++) 
+    {
         ctbLayer layer = *it;
 
         // Build bitmaps from the layer data and their encrypted versions
-        Mat imlayer = myCTB.getLayerImageRL7(layer, im_width, im_heigth);
+        Mat imlayer = myCtb.getLayerImageRL7(layer, im_width, im_heigth);
         layer_bmp my_layer_bmp;
 
         int ctr = nonce + layer_no / res;
 
         BOOL encrypt = (it >= it_iniLayer && it < it_endLayer);
         if (encrypt)
-            my_layer_bmp = myCTB.encrypt_area(imlayer, area, key, ctr, res);
-        else {
+            my_layer_bmp = myCtb.encrypt_area(imlayer, area, key, ctr, res);
+        else 
+        {
             my_layer_bmp.layer_ct = imlayer;
             my_layer_bmp.layer_pt = imlayer;
             my_layer_bmp.layer_enc = \
@@ -395,9 +409,11 @@ int generateDecryptorImages(ctbData ctbData , encryption_prop prop, filesystem::
         cv::imwrite(filepath.u8string(), my_layer_bmp.layer_enc);
 
 
+        if (VERBOSE) std::cout << "Writing layer " << layer_no << std::endl;
         layer_no++;
+
     }
-    destroyWindow("draw");
-    cout << "All transformed bmp files were generated. Generating new ctb --- Not really..";
+    //destroyWindow("draw");
+    cout << "All transformed bmp files were generated. Generating new ctb --- Not really..";  
     return 0;
 }
