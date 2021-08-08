@@ -4,27 +4,92 @@
 #pragma once
 #include "..\include\ctb_file.h"
 
-FILE* stream;
 
-ctbData get_layer_data_from_ctb(const char* filename)
+// -- For Debugging
+void print_layer_hex(const vector<uint8_t>& layer_data)
 {
+    for (int i = 0; i < layer_data.size(); i++)
+    {
+        cout << hex << setw(2) << setfill('0') << uppercase << +layer_data[i];
+    }
+    std::cout << std::endl;
+}
+
+
+std::string wstr2str(const std::wstring& wstr)
+{
+    std::string str_out(wstr.length(), 0);
+    int s_size = WideCharToMultiByte(CP_UTF8,
+        0,
+        &wstr[0],
+        -1,
+        &str_out[0],
+        wstr.length(), NULL, NULL);
+
+    return str_out;
+}
+
+
+void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
+{
+    // -- Return if filename has not been changed and layer had been previously prepared
+    if ((fname == L"default" && m_layer_prepd) || (wstr2str(fname) == m_ctb_fname))
+    {
+        std::cout << m_ctb_fname << " has already been prepared" << std::endl;
+        return;
+    }
+
+    FILE* stream;
+
+    // -- Empty vectors incase they have been used previously
+    m_ctb_data.layer_data.clear();
+    m_ctb_data.layer_i_addr.clear();
+    m_ctb_data.layer_len_addr.clear();
+
+    string filename;
+
+    if (fname == L"default")
+    {
+        if (!m_ctb_fname.empty())
+        {
+            filename = m_ctb_fname;
+        }
+        else
+        {
+            std::cout << "No file to open." << std::endl;
+            return;
+        }
+    }
+    else
+    {
+        m_ctb_fname = wstr2str(fname);
+        filename = wstr2str(fname);
+    }
+        
     uint32_t buffer[BUFFERSIZE];
     uint32_t header[HEADERCNT];
     uint32_t stream_i, indi;
     size_t numread;
     int err;
 
-    stream = fopen(filename, "rb"); //Open the file in binary mode
-    if (VERBOSE) {
-        if (errno == 0) { printf("The file %s was opened\n", filename); }
-        else { printf("The file %s was not opened\n", filename); }
+    stream = fopen(filename.c_str(), "rb"); //Open the file in binary mode
+    if (VERBOSE) 
+    {
+        if (errno == 0) { printf("The file %s was opened\n", filename.c_str()); }
+        else { printf("The file %s was not opened\n", filename.c_str()); }
     }
 
-    for (stream_i = 0; stream_i < HEADERSIZE; stream_i += HDATASIZE) {
+    for (stream_i = 0; stream_i < HEADERSIZE; stream_i += HDATASIZE) 
+    {
         numread = fread(buffer, HDATASIZE, 1, stream);
         header[stream_i / HDATASIZE] = *buffer;
         if (VERBOSE) printf("\nGENERAL HEADER 0x%x \t %x", stream_i, *buffer);
     }
+
+
+    m_ctb_data.encrypt_key = header[25];                // *****ctb_data being modified here*****//
+
+
     int layer_width = header[CTB_MHEADER_RESX];
     int layer_heigth = header[CTB_MHEADER_RESY];
 
@@ -35,12 +100,14 @@ ctbData get_layer_data_from_ctb(const char* filename)
 
     //First read the preview 1 header
     uint32_t prev1_header[8];
-    while (stream_i < previewh_add - 1) { //Dump any parsing data
+    while (stream_i < previewh_add - 1) //Dump any parsing data
+    { 
         fread_s(buffer, BUFFERSIZE, HDATASIZE, 1, stream);
         stream_i += HDATASIZE;
     }
 
-    while (stream_i < previewh_add + previewh_len) {
+    while (stream_i < previewh_add + previewh_len) 
+    {
         indi = (stream_i - previewh_add) / HDATASIZE;
         numread = fread_s(buffer, BUFFERSIZE, HDATASIZE, 1, stream);
         prev1_header[indi] = *buffer;
@@ -55,7 +122,8 @@ ctbData get_layer_data_from_ctb(const char* filename)
     std::vector<uint16_t> preview1;
     int PACKSIZE = 1;
 
-    while (stream_i < prev1dat_len + prev1dat_add) {
+    while (stream_i < prev1dat_len + prev1dat_add) 
+    {
         indi = (stream_i - prev1dat_add) / PRDATASIZE;
         numread = fread_s(buffer, BUFFERSIZE, PRDATASIZE, PACKSIZE, stream);
         if (numread == 0) {
@@ -98,7 +166,8 @@ ctbData get_layer_data_from_ctb(const char* filename)
     prev2dat_len = prev2_header[3];
     std::vector<uint16_t> preview2;
 
-    while (stream_i < prev2dat_len + prev2dat_add) {
+    while (stream_i < prev2dat_len + prev2dat_add) 
+    {
         indi = (stream_i - prev2dat_add) / PRDATASIZE;
         numread = fread_s(buffer, BUFFERSIZE, PRDATASIZE, PACKSIZE, stream);
 
@@ -135,7 +204,8 @@ ctbData get_layer_data_from_ctb(const char* filename)
     sparam_len = header[CTB_HEADER_SLCLEN];
 
     uint32_t* slice_header = new uint32_t[sparam_len / HDATASIZE];
-    while (stream_i < sparam_add + sparam_len) {
+    while (stream_i < sparam_add + sparam_len) 
+    {
         indi = (stream_i - sparam_add) / HDATASIZE;
         numread = fread(buffer, HDATASIZE, 1, stream);
         slice_header[indi] = *buffer;
@@ -150,7 +220,8 @@ ctbData get_layer_data_from_ctb(const char* filename)
     char* machine_name = new char[mname_len];
     char cbuff[1];
 
-    while (stream_i < mname_add + mname_len) {
+    while (stream_i < mname_add + mname_len) 
+    {
         indi = (stream_i - mname_add) / HDATASIZE;
         numread = fread(cbuff, 1, 1, stream);
         machine_name[indi] = *cbuff;
@@ -166,7 +237,8 @@ ctbData get_layer_data_from_ctb(const char* filename)
     std::vector<std::vector<uint32_t>> layer_headers;
     std::vector<std::vector<uint32_t>> layer_headers_idxs;
 
-    while (stream_i < layerh_add0 + LDATASIZE * layerh_len) {
+    while (stream_i < layerh_add0 + LDATASIZE * layerh_len) 
+    {
         layerh_addi = (stream_i);     //Address if the ith layer
         std::vector<uint32_t> layer_header;
         std::vector<uint32_t> layer_header_idx;
@@ -201,23 +273,26 @@ ctbData get_layer_data_from_ctb(const char* filename)
     */
     uint32_t layeri_add, layeri_len;
 
-    ctbData ctb_data;
-    ctb_data.layer_heigth = layer_heigth;
-    ctb_data.layer_width = layer_width;
+    m_ctb_data.layer_heigth = layer_heigth;   // *****m_ctb_data being modified here*****//
+    m_ctb_data.layer_width = layer_width;     // *****m_ctb_data being modified here*****//
     //std::vector<std::vector<uint8_t>> layer_data;
     int k = 0;
-    for (auto it = layer_headers.begin(); it != layer_headers.end(); ++it) {
+    for (auto it = layer_headers.begin(); it != layer_headers.end(); ++it) 
+    {
         std::vector<uint32_t> layer_header = *it;
         layeri_add = layer_header[3];
         layeri_len = layer_header[4];
-        ctb_data.layer_i_addr.push_back(layeri_add);
-        ctb_data.layer_len_addr.push_back(layer_headers_idxs[k][4]);
+
+        m_ctb_data.layer_i_len.push_back(layeri_len);                     // *****m_ctb_data being modified here*****//
+        m_ctb_data.layer_i_addr.push_back(layeri_add);                    // *****m_ctb_data being modified here*****//
+        m_ctb_data.layer_len_addr.push_back(layer_headers_idxs[k][4]);    // *****m_ctb_data being modified here*****//
 
 
         if (VERBOSE)
             printf("\n");
 
-        while (stream_i < layeri_add - 1) { //Dump data before the start of the layer data (repeated header)
+        while (stream_i < layeri_add - 1) 
+        { //Dump data before the start of the layer data (repeated header)
             fread(buffer, HDATASIZE, 1, stream);
             //printf("\nDUMP DATA 0x%x \t %x", stream_i, *buffer);
             stream_i += HDATASIZE;
@@ -226,34 +301,97 @@ ctbData get_layer_data_from_ctb(const char* filename)
         uint8_t PIXELDSIZE = 1;
         int indi = 0;
 
-        std::vector<uint8_t> single_layer_data;
-        while (stream_i < layeri_add + layeri_len) { //Dump any parsing data
+        while (stream_i < layeri_add + layeri_len) //Dump any parsing data
+        { 
             indi = stream_i - layeri_add;
             fread(buffer, PIXELDSIZE, 1, stream);
             uint8_t pixel = *buffer;
-            single_layer_data.push_back(pixel);
 
-            if (VERBOSE) {
+            if (VERBOSE) 
+            {
                 if (indi % 8 == 0) printf("\nLAYER DATA 0x%x \t" STRB2BIN, stream_i, BYTE_TO_BINARY(pixel));
                 else  printf(" " STRB2BIN, BYTE_TO_BINARY(pixel));
             }
-
             stream_i += PIXELDSIZE;
         }
-        ctb_data.layer_data.push_back(single_layer_data);
         k++;
     }
 
+    std::cout << "Finished processing header information ..." << std::endl;
+
     fclose(stream);
 
-    ctb_data.preview1 = getPreview(preview1, (int)prev1_header[0], (int)prev1_header[1]);
-    ctb_data.preview2 = getPreview(preview2, (int)prev2_header[0], (int)prev2_header[1]);
+    m_ctb_data.preview1 = getPreview(preview1, (int)prev1_header[0], (int)prev1_header[1]);   // *****m_ctb_data being modified here*****//
+    m_ctb_data.preview2 = getPreview(preview2, (int)prev2_header[0], (int)prev2_header[1]);   // *****m_ctb_data being modified here*****//
 
-    return ctb_data;
+    m_layer_prepd = true;
+    m_no_layers = m_ctb_data.layer_i_addr.size();
+
+    // -- Prepare all layer data and put them in vector all_layer_data
+    if (prep_all_data)
+    {
+        prep_all_layer_data();
+    }
+        
+   
 }
 
+
+
+// -- Prepares all the layer data into a member variable all_layer_data
+void CTB::prep_all_layer_data()
+{
+    if (m_layer_prepd)
+    {
+        for (int i = 0; i < m_no_layers; i++)
+            m_ctb_data.all_layer_data.push_back(get_layer(i));
+    }
+}
+
+
+
+// -- Selectively get layer i from CTB file
+vector<uint8_t> CTB::get_layer(int i)
+{
+    vector<uint8_t> lyr_data;
+
+    if (m_layer_prepd)    // -- Check if the file had been parsed for layer_i_addr and layer_i_len
+    {
+        ifstream ifstrm;
+        ifstrm.open(m_ctb_fname, std::ifstream::binary);
+        if (!ifstrm)
+        {
+            std::cout << "Cannot open " <<  m_ctb_fname << std::endl;
+            return lyr_data;
+        }
+
+        uint32_t pos = m_ctb_data.layer_i_addr[i];
+        uint32_t len = m_ctb_data.layer_i_len[i];
+
+        auto temp = std::vector<uint8_t>(std::istreambuf_iterator<char>(ifstrm), std::istreambuf_iterator<char>());;
+
+        for (int j = pos; j < len + pos; j++)
+        {
+            lyr_data.push_back(temp[j]);
+        }
+
+        ifstrm.close();
+
+    }
+    else
+    {
+        std::cout << "Layers have not been prepared yet" << std::endl;
+    }
+
+    return lyr_data;
+}
+
+
+
 //This function draws an image following the BMP file specification for a color image.
-cv::Mat getPreview(std::vector<uint16_t> data, int width, int height) {
+cv::Mat CTB::getPreview(std::vector<uint16_t> data, int width, int height) 
+{
+    std::cout << "Getting preview data ..." << std::endl;
     cv::Mat image(height , width, CV_8UC3);
     int x = 0, y = 0;
 
@@ -289,8 +427,11 @@ cv::Mat getPreview(std::vector<uint16_t> data, int width, int height) {
     return image;
 }
 
+
+
 //Generates an image following the layer specification with no antialiasing
-cv::Mat getLayerImageRL1(std::vector<uint8_t> data, int width, int height) {
+cv::Mat CTB::getLayerImageRL1(std::vector<uint8_t> data, int width, int height) 
+{
     cv::Mat image(width, height,CV_8UC3);
     int x = 0, y = 0;
 
@@ -317,7 +458,8 @@ cv::Mat getLayerImageRL1(std::vector<uint8_t> data, int width, int height) {
 }
 
 //Generates an image following the layer specification with antialiasing
-cv::Mat getLayerImageRL7(std::vector<uint8_t> data, int width, int height) {
+cv::Mat CTB::getLayerImageRL7(std::vector<uint8_t> data, int width, int height) 
+{
     cv::Mat image(height, width, CV_8UC3);
     int x = 0, y = 0;
 
@@ -348,7 +490,7 @@ cv::Mat getLayerImageRL7(std::vector<uint8_t> data, int width, int height) {
                 run_length = decode(it, 3);
             else
             {
-                std::cout << "Unrecognized RLE byte" << std::endl;
+                std::cout << "Unrecognized RLE7 byte" << std::endl;
                 return image;
             }
 
@@ -378,8 +520,10 @@ cv::Mat getLayerImageRL7(std::vector<uint8_t> data, int width, int height) {
     return image;
 }
 
+
+
 //RLE7 decodification for the bmp specification
-uint32_t decode(std::vector<uint8_t>::iterator& it, int numbytes)
+uint32_t CTB::decode(std::vector<uint8_t>::iterator& it, int numbytes)
 {
     uint8_t data = *it;
     uint16_t temp2 = 0x7F;
@@ -391,7 +535,10 @@ uint32_t decode(std::vector<uint8_t>::iterator& it, int numbytes)
     return length;
 }
 
-layer_bmp encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int res) {
+
+
+layer_bmp CTB::encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int res) 
+{
     int numx = (int) ceil(area.width  * 1. / res);
     int numy = (int) ceil(area.height * 1. / res);
     int ct_len = numx * numy / NBITS;
@@ -409,14 +556,14 @@ layer_bmp encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t i
     cv::Mat enci = enc2bmp(enc,area.size(),res);
     
 
-    //Build encripting layer image.
+    //Build encrypting layer image.
     cv::Mat layer_enc(image.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
     cv::Mat submat1 = layer_enc(area);
     enci.copyTo(submat1);
     layer_enc.copyTo(out.layer_enc);
 
 
-    //Encryption of pt and build encryoted image
+    //Encryption of pt and build encrypted image
     cv::Mat layer_ct(image.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
     image.copyTo(layer_ct);
     cv::bitwise_xor(image, layer_enc, layer_ct);
@@ -425,7 +572,10 @@ layer_bmp encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t i
      return out;
 }
 
-cv::Mat enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res) {
+
+
+cv::Mat CTB::enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res) 
+{
     cv::Mat enci(area.width, area.height, CV_8UC3);
     int numx = (int)ceil(area.width * 1. / res);
 
@@ -442,3 +592,470 @@ cv::Mat enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res) {
     }
     return enci;
 }
+
+
+
+std::vector<uint8_t> CTB::encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv)
+{
+    /// <summary>
+    /// This function encrypts or decrypts a layer using an XOR based stream cipher. 
+    /// This means that decryption and encryption uses the same mechanism. 
+    /// So if you pass an encrypted layer through this function, you get out a decrypted layer and vice versa.
+    /// </summary>
+    /// <param name="key"> Key that was used to encrypt/decrypt the data</param>
+    /// <param name="data"> Uint8_t vector of the layer data</param>
+    /// <param name="iv"> The current layer index i.e 0 for bottom layer, 1 for the next layer and so on</param>
+    /// <returns> Function returns a vector of the encrypted/decrypted layer data</returns>
+
+    std::vector<uint8_t> result;
+
+    // Multiplication and Addition is in modulo 2^32. operations * and + are automatically modulo 2^32 for uint32_t.
+    uint32_t c = m_ctb_data.encrypt_key * 0x2D83'CDAC + 0xD8A8'3423;
+
+    uint32_t X = (iv * 0x1E15'30CD + 0xEC3D'47CD) * c;
+
+    int n = 0;
+    while (n < data.size())
+    {
+        for (int i = 0; i < 4; i++) // The data from the layer data is read in Little Endiannes format
+        {
+            if (n < data.size())
+            {
+                result.push_back(data[n] ^ (uint8_t)(X >> (i * 8)));
+                n++;
+            }
+            else break;
+        }
+
+        X = X + c;
+    }
+
+    return result;
+}
+
+
+
+inline void CTB::push_encoded(vector<uint8_t>& encoded, bitset<8>::reference& c, uint32_t runlen, bitset<2>& ref)
+{
+    if (runlen == 1)
+    {
+        if (c == ref[0]) encoded.push_back(0x00);
+        else encoded.push_back(0x7F);
+    }
+
+    else
+    {
+        if (c == ref[0]) encoded.push_back(0x80);
+        else encoded.push_back(0xFF);
+
+        if (runlen < 128)
+            encoded.push_back(static_cast<uint8_t>(runlen));
+
+        else if (runlen < 268435456) // 2 ^ 28 (max acceptable runlen)
+        {
+            int n;
+            if (runlen < 16384) n = 2;          // 2 ^ 14
+            else if (runlen < 2097152) n = 3;   // 2 ^ 21
+            else n = 4;                         // 2 ^ 28
+
+
+            vector<uint8_t> a;
+
+            // -- Create bytes (uint8_t) from runlen
+            for (int j = n - 1; j >= 0; j--)
+                a.push_back(static_cast<uint8_t>(runlen >> (j * 8)));
+
+            // -- Set bit 7 - i
+            for (int k = 0; k < (n - 1); k++)
+                a[0] |= ( 1 << (7 - k) );
+
+            // -- Push encoded bytes
+            for (int l = 0; l < n; l++)
+                encoded.push_back(a[l]);
+
+        }
+        else
+        {
+            std::cout << "Invalid Run Length: " << runlen << std::endl;
+        }
+    }
+
+    if (VERBOSE)
+    {
+        std::cout << "(Encode_RLE7) runlen: " << dec << runlen << std::endl;
+    }
+}
+
+
+
+// RLE7 Encoding scheme -- optimized for memory
+vector<uint8_t> CTB::encode_rle7(vector<uint8_t>& unencoded)
+{
+    vector<uint8_t> encoded;
+    auto it = unencoded.begin(); 
+    
+    bitset<2> ref("10"); // -- bitset::reference to 1 or 0
+    bitset<8> initl(*it); 
+    bitset<8>::reference c = initl[7]; // -- Starting bit
+
+    int id = 0;
+    // -- Choose starting reference bit according to the starting bit
+    if (c == ref[0])  c = ref[id];
+    else              c = ref[++id % 2];
+
+    bitset<8> curr(*it);
+    uint32_t runlen = 0;
+
+    while (it != unencoded.end())
+    {
+        for (int i = 7; i >= 0; i--)
+        {
+            if (curr[i] == c)  runlen += 1;
+            else
+            {
+                push_encoded(encoded, c, runlen, ref);
+
+                c = ref[++id % 2]; // - Toggle previous bit
+                runlen = 1;        // - Reset runlen
+            }     
+        }
+
+        it++;
+        // -- If end of vector unencoded, then push final encoded data
+        if (it != unencoded.end())  curr = *it;
+        else push_encoded(encoded, c, runlen, ref);
+    }
+
+    if (VERBOSE)
+    {
+        std::cout << "Encoded length: " << dec << encoded.size() << std::endl;
+    }
+        
+    return encoded;
+}
+
+
+// -- Get current run length
+inline uint32_t CTB::get_runlen(vector<uint8_t>::iterator& it)
+{
+    it++;
+    uint8_t dat = *it;
+    uint32_t run_length = 0;
+
+    if (!(dat >> 7))
+        run_length = decode(it, 0);
+    else if ((dat >> 6) == 0b10)
+        run_length = decode(it, 1);
+    else if ((dat >> 5) == 0b110)
+        run_length = decode(it, 2);
+    else if ((dat >> 4) == 0b1110)
+        run_length = decode(it, 3);
+    else
+    {
+        std::cout << "Unrecognized RLE7 Byte" << std::endl;
+    }
+
+    return run_length;
+}
+
+
+// - RLE7 Decompressing/Decoding -- implementation for memory optimization
+vector<uint8_t> CTB::decode_rle7(vector<uint8_t>& encoded)
+{
+    vector<uint8_t> decoded;
+
+    bitset<8> buf;
+    bitset<2> ref("10");
+
+    int a = 0;
+    int n = 0;
+    int rem = 0;
+    int stop = 0;
+    uint32_t sum = 0;
+
+    for (auto it = encoded.begin(); it != encoded.end(); ++it) 
+    {
+        uint8_t run;
+        uint8_t dat = *it;
+        uint32_t run_length;
+
+        run = dat & 0x80;
+        auto pixel = ((dat & 0x7F) == 0x00) ? ref[0] : ref[1];
+
+        if (run)
+        {
+            run_length = get_runlen(it);
+
+            if (run_length >= 8)
+            {
+                a = (8 - stop) % 8;
+                n = (run_length - a) / 8;
+                rem = (run_length - a) % 8;
+            }
+            else
+            {
+                n = 0;
+                a = (8 - stop) % 8;
+                rem = run_length - a;
+                rem = (rem < 0) ? 0 : rem;
+            }
+            
+            if (stop != 0)
+            {
+                while ((stop < 8) && (a > 0))
+                {
+                    buf[stop] = pixel;
+                    stop++; a--;
+                }
+                stop = stop % 8;
+                if (stop == 0) decoded.push_back(static_cast<uint8_t>(buf.to_ulong()));
+            }
+
+            if (n > 0)
+            {
+                if (pixel == ref[0])
+                {
+
+                    for (int i = 0; i < n; i++)
+                        decoded.push_back(0x00);
+                    if (VERBOSE)
+                        std::cout << "pushed 0: runlen " << dec << run_length << "no of elements: " << n << "\n";
+                }
+                else
+                {
+                    for (int i = 0; i < n; i++)
+                        decoded.push_back(0xFF);
+                    if (VERBOSE)
+                        std::cout << "pushed 1: runlen " << dec << run_length << "no of elements: " << n << "\n";
+                }
+            }
+
+            if (rem > 0)
+            {
+                for (int i = 0; i < rem; i++)
+                {
+                    buf[i] = pixel;
+                    std::cout << "inside rem\n";
+                }
+                stop = rem;
+            }
+            
+
+            sum += run_length;
+        }
+        else
+        {
+            run_length = 1;
+
+            if (stop != 0)
+            {
+                buf[stop] = pixel;
+                stop++;
+
+                stop = stop % 8;
+
+                if (stop == 0)
+                {
+                    decoded.push_back(static_cast<uint8_t>(buf.to_ulong()));
+                }
+            }
+            else
+            {
+                buf[0] = pixel;
+                stop++;
+            }
+            
+            sum++;
+        }
+    }
+
+    if (VERBOSE)
+    {
+        std::cout << "Total bits: " << std::dec << sum << std::endl;
+        std::cout << "Decoded data size (bytes): " << dec << decoded.size() << std::endl;
+    }
+    
+    return decoded;
+}
+
+
+void CTB::decrypt_ctb_file(wstring output)
+{
+    if (m_ctb_data.encrypt_key == 0x0000'0000)
+    {
+        std::cout << "CTB file " << m_ctb_fname << " is not encrypted. returning ..." << std::endl;
+        return;
+    }
+    // - get the header (excluding layer data) from the ctb file
+    auto header = get_file_header();
+
+    // -- Set the key to 0x00000000
+    for (int i = 100; i < 104; i++)
+    {
+        header[i] = 0x00;
+    }
+        
+    string outfilename = wstr2str(std::filesystem::current_path().wstring()) + "\\models\\box\\" + wstr2str(output);
+    ofstream ctbfilestrm = create_ctb(header, outfilename);
+
+    // -- Free memory
+    header.clear();
+    header.shrink_to_fit();
+
+    vector<uint8_t> decrypted;
+
+    std::cout << "Decrypting...";
+    for (int j = 0; j < m_no_layers; j++)
+    {
+        decrypted = encrypt_decrypt_86(get_layer(j), j);
+        add_layer_to_ctb(ctbfilestrm, decrypted, m_ctb_data.layer_len_addr[j]);
+        std::cout << ".";
+    }
+
+    std::cout << "\nFinished decrypting file " << m_ctb_fname << std::endl << std::endl;
+    std::cout << "Generated decrypted CTB file " << outfilename << std::endl;
+
+    ctbfilestrm.close();
+}
+
+
+// Enter key in Little Endiannes Format
+void CTB::encrypt_ctb_file(uint32_t key, wstring output)
+{
+    if (m_ctb_data.encrypt_key != 0x0000'0000)
+    {
+        std::cout << "CTB file " << m_ctb_fname << " is already encrypted. Returning ..." << std::endl;
+        std::cout << "Key is: " << m_ctb_data.encrypt_key << std::endl;
+        std::cout << "Alternatively decrypt and then re-encrypt with another key" << std::endl;
+        return;
+    }
+
+    m_ctb_data.encrypt_key = key;
+
+    // -- Get the header (excluding layer data) from the ctb file
+    auto header = get_file_header();
+
+    // -- Set the key
+    for (int i = 100; i < 104; i++)
+    {
+        header[i] = static_cast<uint8_t>(key >> (i - 100) * 8);
+    }
+
+    string outfilename = wstr2str(std::filesystem::current_path().wstring()) + "\\models\\box\\" + wstr2str(output);
+    ofstream ctbfilestrm = create_ctb(header, outfilename);
+
+    // -- Free memory
+    header.clear();
+    header.shrink_to_fit();
+
+    vector<uint8_t> encrypted;
+
+    std::cout << "Encrypting...";
+    for (int j = 0; j < m_no_layers; j++)
+    {
+        encrypted = encrypt_decrypt_86(get_layer(j), j);
+        add_layer_to_ctb(ctbfilestrm, encrypted, m_ctb_data.layer_len_addr[j]);
+        std::cout << ".";
+    }
+
+    std::cout << "\nFinished encrypting file " << m_ctb_fname << std::endl;
+    std::cout << "Generated encrypted CTB file " << wstr2str(output) << std::endl;
+
+    ctbfilestrm.close();
+}
+
+
+
+// -- Get header information (i.e file header, preview images, table of layer data) only.
+std::vector<uint8_t> CTB::get_file_header()
+{
+    std::vector<uint8_t> header;
+
+    std::ifstream ifstrm(m_ctb_fname, std::ifstream::binary);
+    if (!ifstrm)
+    {
+        std::cout << "Cannot open " << m_ctb_fname << std::endl;
+        return header;
+    }
+
+    // Get stream of bytes of the file
+    header = std::vector<uint8_t>(std::istreambuf_iterator<char>(ifstrm), std::istreambuf_iterator<char>());
+
+    header.resize(m_ctb_data.layer_i_addr[0]); // -- Retain all data before the first layer data.
+
+    return header;
+
+    if (VERBOSE)
+    {
+        std::cout << "File header extracted " << std::endl;
+    }
+}
+
+
+// - Create a bare ctb file with headers only. Layer data will be added later.
+ofstream CTB::create_ctb(const vector<uint8_t>& header, string ctbfname)
+{
+    // -- open file for writing in binary
+    ofstream outf;
+    outf.open(ctbfname, fstream::out | fstream::binary);
+    if (!outf)
+    {
+        std::cout << std::strerror(errno) << std::endl;
+        std::cout << "File " << ctbfname <<" could not be created. Returning empty ofstream ..."  << std::endl;
+        return outf;
+    }
+    else
+    {
+        if (VERBOSE)
+        {
+            std::cout << "Created file " << ctbfname << std::endl;
+        }
+        
+    }
+    
+    // -- Write header to file
+    for (const auto& d : header) outf << d;
+
+    return outf;
+}
+
+
+// -- Add one layer to a ctb file
+void CTB::add_layer_to_ctb
+(
+    ofstream& ctbstrm,
+    const std::vector<uint8_t>& layer_data,
+    const std::uint32_t len_addr
+)
+{
+    ctbstrm.seekp(0, ios_base::end);
+
+    // -- Holds the address of the current data to be written to file
+    std::uint32_t lyr_addr[1] = { ctbstrm.tellp() };
+
+    // -- For some reasons, lyr_len has to be an array for ofstream.write to work
+    std::uint32_t lyr_len[1] = { layer_data.size() };
+
+    // -- Change length of layer i in the ctb file
+    ctbstrm.seekp(len_addr * sizeof(std::uint8_t));             // -- move to the location where the length of layer i is stored
+    ctbstrm.write((char*)lyr_len, sizeof(std::uint32_t));       // -- overwrite the old length with the new length
+
+
+    // -- Change address of layer i in the ctb file
+    ctbstrm.seekp((len_addr - 4) * sizeof(std::uint8_t));       // -- move to the location where the address of layer i is stored
+    ctbstrm.write((char*)lyr_addr, sizeof(std::uint32_t));      // -- overwrite old address with new address
+
+    // -- Write data into file
+    ctbstrm.seekp(0, ios_base::end);
+    for (int i = 0; i < layer_data.size(); i++)
+    {
+        ctbstrm << layer_data[i];
+    }
+    
+    if (VERBOSE)
+    {
+        std::cout << "Successfully writen layer to CTB file" << std::endl;
+    }
+    
+}
+

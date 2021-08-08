@@ -7,11 +7,14 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include <windows.h>
 #include <iostream>
 #include <fstream>
 #include <stdio.h>  //For file operations
 #include <vector>
 #include <cstring>
+#include <bitset>
+#include <filesystem>
 #include "aes_ctr.h"
 
 #define STRB2BIN "%c%c%c%c%c%c%c%c"
@@ -48,7 +51,14 @@ constexpr int BITMAP_HEADER_SIZE_DEPTH_24 = 54;
 #include <opencv2/opencv.hpp>
 typedef  std::vector<uint8_t> ctbLayer;
 
-struct layer_bmp {
+using namespace std;
+
+
+std::string wstr2str(const std::wstring& wstr);
+
+
+struct layer_bmp 
+{
     cv::Mat layer_pt;   //Bitmap of the layer information [plain text]
     cv::Mat layer_ct;   //Bitmap of the encrypted layer (for the new ctb file) [cipher text]
     cv::Mat layer_enc;  //Bitmap of the decrypting layer (for the LCD decryptor)
@@ -56,23 +66,75 @@ struct layer_bmp {
 
 struct ctbData
 {
-    std::vector<ctbLayer>       layer_data;
+    ctbLayer                    layer_data;
+    vector<ctbLayer>            all_layer_data;
     std::vector<std::uint32_t>  layer_i_addr;
+    std::vector<std::uint32_t>  layer_i_len;
     std::vector<std::uint32_t>  layer_len_addr;
+
 
     cv::Mat preview1;
     cv::Mat preview2;
 
     int layer_width;
     int layer_heigth;
+
+    uint32_t encrypt_key;
 };
 
 
-using namespace std;
-ctbData get_layer_data_from_ctb(const char* filename);
-cv::Mat getPreview(std::vector<uint16_t> data, int width, int height);
-cv::Mat getLayerImageRL1(std::vector<uint8_t> data, int width, int height);
-cv::Mat getLayerImageRL7(std::vector<uint8_t> data, int width, int height);
-uint32_t decode(std::vector<uint8_t>::iterator& it, int numbytes);
-layer_bmp encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int resolution);
-cv::Mat enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res);
+
+class CTB
+{
+    public:
+
+        int m_no_layers;
+        string m_ctb_fname;
+        ctbData m_ctb_data;
+        layer_bmp m_layer_bmps;
+        bool m_layer_prepd;
+
+
+        CTB()
+        {
+            m_layer_prepd = false;
+            m_no_layers = 0;
+        }
+        CTB(string fname)
+        {
+            m_ctb_fname = fname;
+            m_layer_prepd = false;
+            m_no_layers = 0;
+        }
+        
+        void prep_ctb_file(wstring fname, bool prep_all_data);
+        void prep_all_layer_data();
+        vector<uint8_t> get_layer(int i);
+        cv::Mat getPreview(std::vector<uint16_t> data, int width, int height);
+        cv::Mat getLayerImageRL1(std::vector<uint8_t> data, int width, int height);
+        cv::Mat getLayerImageRL7(std::vector<uint8_t> data, int width, int height);
+        uint32_t decode(std::vector<uint8_t>::iterator& it, int numbytes);
+        layer_bmp encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int resolution);
+        cv::Mat enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res);
+        std::vector<uint8_t> encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv);
+        std::vector<std::vector<uint8_t>> encrypt_decrypt_86_all(std::vector<std::vector<uint8_t>> data);
+        inline void push_encoded(vector<uint8_t>& encoded, bitset<8>::reference& c, uint32_t runlen, bitset<2>& ref);
+        vector<uint8_t> encode_rle7(vector<uint8_t>& unencoded);
+        inline uint32_t get_runlen(vector<uint8_t>::iterator& it);
+        vector<uint8_t> decode_rle7(vector<uint8_t>& encoded);
+
+        std::vector<uint8_t> get_file_header();
+        void decrypt_ctb_file(wstring output);
+        void encrypt_ctb_file(uint32_t key, wstring output);
+        ofstream create_ctb(const vector<uint8_t>& header, string ctbfname);
+        void add_layer_to_ctb(ofstream& ctbstrm, const std::vector<uint8_t>& layer_data, const std::uint32_t len_addr);
+
+    private:
+        
+        
+};
+
+
+
+
+

@@ -10,10 +10,10 @@
     <ClCompile Include="src\gf28.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="HackCreality.cpp">
+    <ClCompile Include="src\ctb_file.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ctb_file.cpp">
+    <ClCompile Include="src\HackCreality.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -24,7 +24,13 @@
     <ClInclude Include="include\ctb_file.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Hackcreality.h">
+    <ClInclude Include="include\Hackcreality.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\gf28.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
