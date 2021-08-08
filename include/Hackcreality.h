@@ -5,7 +5,6 @@
 
 #define _WINNT_WIN32 0600
 
-//#include "stdafx.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui_c.h> 
 #include <windows.h>
@@ -58,7 +57,7 @@ struct screens
     }
 };
 
-BOOL openFileDialog(std::wstring* file_name);
+int openFileDialog(std::wstring* file_name);
 cv::Mat rotateImage(cv::Mat image, double angle);
 
 std::string displayimage(cv::Mat image, std::string window_name);
@@ -67,12 +66,8 @@ std::string displayimage_fs(std::wstring file_name, std::string window_name);
 std::string displayimage_fs(std::wstring file_name, std::string window_name, int display_number);
 void plotandwait(cv::Mat image);
 
-int generateDecryptorImages(ctbData myCTB, encryption_prop prop, filesystem::path save_path);
+int generateDecryptorImages(ctbData myCTB, encryption_prop prop, std::filesystem::path save_path);
 
 
 int messageListener(int* option);
 void messageParser(int* option);
-
-
-
-int RLE_encoder();
