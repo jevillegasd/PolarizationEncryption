@@ -1,33 +1,32 @@
 // HackCreality2.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #include <Shobjidl.h> //  COM library, don't put this in the header file
-#include "../include/Hackcreality.h"
 #include "../include/ctb_file.h"
+#include "../include/Hackcreality.h"
 
 using namespace cv;
 using namespace std;
 
 const std::wstring PATH = std::filesystem::current_path().wstring();
 const std::wstring default_im_fn(PATH + L"\\data\\layers\\layer_archive\\layer1scaled.bmp");
-const std::wstring DEFAULT_CTB_INP_FILENAME(PATH + L"\\models\\box\\unencrypted_box.ctb");
+const std::wstring DEFAULT_CTB_INP_FILENAME(PATH + L"\\models\\box\\encrypted_box.ctb");
 const std::wstring DEFAULT_CTB_OUT_FILENAME(PATH + L"\\models\\box\\output.ctb");
 
 std::wstring in_ctb(DEFAULT_CTB_INP_FILENAME);  //Filenames are in wstrings to support UNICODE
 std::wstring out_ctb(DEFAULT_CTB_OUT_FILENAME);
 
-ctbData myCTB;
+CTB myCTB;
 encryption_prop encProp;
 
 
 int main()
 {
-    int option=0; 
-    myCTB = get_layer_data_from_ctb(wstr2str(in_ctb).c_str());
+    int option=0;
 
-    /*while (messageListener(&option)) 
+    while (messageListener(&option)) 
     {
         messageParser(&option);
-    }*/
+    }
     return 0;
 }
 
@@ -36,7 +35,8 @@ int main()
 int messageListener(int* option) 
 {
     // Print menu according to state
-    switch (*option) {
+    switch (*option) 
+    {
     case 0: 
         cout << STRMAINMENU;
         break;
@@ -84,43 +84,120 @@ int messageListener(int* option)
 
 
 
-void messageParser(int* option) {
-    switch (*option) {
-    case 0: {
-        
-    }
-        break;
-    case 1: {
-        *option = 0;
-        wstring file_name;
-        if (openFileDialog(&file_name)) {
-            in_ctb.assign(file_name);
-            myCTB = get_layer_data_from_ctb(wstr2str(in_ctb).c_str());
-            if (myCTB.layer_data.size() != 0) {
-                plotandwait(myCTB.preview1);
-                cout << "\nCTB file openned. ";
-            }
-            
+void messageParser(int* option) 
+{
+    switch (*option) 
+    {
+        case 0: 
+        {
+            break;
         }
-    }
-        break; 
-    case 4: {
-        *option = 0;
-        generateDecryptorImages(myCTB,  encProp, in_ctb);
-    }
-        break;
-    case 7: {
-        *option = 0;
-        wstring file_name = PATH + L"\\imgs\\test_img.bmp";
-        string window_name = displayimage_fs(file_name, NULLSTR, 0);
-        waitKey();
-        destroyWindow(window_name);
-    }
-        break;
-    default: {
-        cout << "Nothing here. This probably needs to be implemented.";
-        option = 0; 
-    }
+        
+        case 1: 
+        {
+            *option = 0;
+            wstring file_name;
+            if (openFileDialog(&file_name)) 
+            {
+                in_ctb.assign(file_name);
+                myCTB.prep_ctb_file(in_ctb, 1);
+
+                if (myCTB.m_ctb_data.encrypt_key != 0x0000'0000)
+                {
+                    std::cout << "File is encrypted..." << std::endl;
+                }
+
+                if (myCTB.m_ctb_data.all_layer_data.size() != 0) 
+                {
+                    std::cout << "Plotting preview image ...";
+                    plotandwait(myCTB.m_ctb_data.preview1);
+                    cout << "\nCTB file opened. ";
+                }
+            
+            }
+            break;
+        }
+
+        case 2:
+        {
+            *option = 0;
+            wstring file_name;
+            if (openFileDialog(&file_name))
+            {
+                in_ctb.assign(file_name);
+                myCTB.prep_ctb_file(in_ctb, 0);
+
+                wstring output_fname;
+
+                std::cout << "Enter the output file name: ";
+                wcin >> output_fname;
+                if (output_fname == L"") output_fname = L"default_output.ctb";
+
+                myCTB.decrypt_ctb_file(output_fname);
+
+            }
+            break;
+        }
+
+        case 3:
+        {
+            *option = 0;
+            wstring file_name;
+            if (openFileDialog(&file_name))
+            {
+                in_ctb.assign(file_name);
+                myCTB.prep_ctb_file(in_ctb, 0);
+
+                wstring output_fname;
+                uint32_t key = 0;
+                
+
+                unsigned long number;
+                std::string numbuf;
+                std::cout << "Enter 32 bit key as block of unspaced hexadecimal(e.g B30911B8): ";
+                cin >> numbuf;
+                number = strtoul(numbuf.c_str(), NULL, 16);
+                if (ULONG_MAX == number && ERANGE == errno)
+                {
+                    std::cerr << "Number too big!" << std::endl;
+                    break;
+                }
+                key = static_cast<uint32_t>(number);
+
+                std::cout << "Your entered key is: " << hex << key << std::endl;
+                std::cout << dec;
+
+                std::cout << "Enter the output file name: ";
+                wcin >> output_fname;
+                if (output_fname == L"") output_fname = L"default_output.ctb";
+
+                myCTB.encrypt_ctb_file(key, output_fname);
+
+            }
+            break;
+        }
+
+        case 4: 
+        {
+            *option = 0;
+            generateDecryptorImages(myCTB.m_ctb_data,  encProp, in_ctb);
+            break;
+        }
+        case 7: 
+        {
+            *option = 0;
+            wstring file_name = PATH + L"\\imgs\\test_img.bmp";
+            string window_name = displayimage_fs(file_name, NULLSTR, 0);
+            waitKey();
+            destroyWindow(window_name);
+            break;
+        }
+            
+        default: 
+        {
+            cout << "Nothing here. This probably needs to be implemented.";
+            option = 0; 
+        }
     }
     return;
 }
@@ -184,18 +261,7 @@ cv::Mat rotateImage(Mat image, double angle) {
 
 
 //Covert a wide string to string
-std::string wstr2str(const std::wstring& wstr)
-{
-    std::string str_out(wstr.length(), 0);
-    int s_size = WideCharToMultiByte(CP_UTF8,
-        0,
-        &wstr[0],
-        -1,
-        &str_out[0],
-        wstr.length(), NULL, NULL);
 
-    return str_out;
-}
 
 
 
@@ -273,14 +339,14 @@ void plotandwait(Mat image) {
 
 
 
-int generateDecryptorImages(ctbData myCTB , encryption_prop prop, filesystem::path save_path){
+int generateDecryptorImages(ctbData ctbData , encryption_prop prop, filesystem::path save_path){
     filesystem::path p(save_path);
     p.remove_filename();
     p += L"data\\layers\\";
 
     int extract_dim = prop.extract_dim;
-    int im_width = myCTB.layer_width;
-    int im_heigth = myCTB.layer_heigth;
+    int im_width = ctbData.layer_width;
+    int im_heigth = ctbData.layer_heigth;
     int i_iniLayer = prop.i_inilayer;
     int i_endLayer = prop.i_endLayer;
     int res = prop.res;
@@ -289,28 +355,28 @@ int generateDecryptorImages(ctbData myCTB , encryption_prop prop, filesystem::pa
 
 
     //Only decrypt the layers between iniLayer and endLayer
-    vector<ctbLayer>::iterator it_iniLayer = myCTB.layer_data.begin() + \
-        min(i_iniLayer, (int)myCTB.layer_data.size());
+    vector<ctbLayer>::iterator it_iniLayer = ctbData.all_layer_data.begin() + \
+        min(i_iniLayer, (int)ctbData.all_layer_data.size());
     vector<ctbLayer>::iterator it_endLayer = it_iniLayer + \
-        min(i_iniLayer + i_endLayer, (int)myCTB.layer_data.size());
+        min(i_iniLayer + i_endLayer, (int)ctbData.all_layer_data.size());
 
     cv::Rect area((im_width - extract_dim) / 2, (im_heigth - extract_dim) / 2, \
         extract_dim, extract_dim);
     encProp.area = area;
 
     int layer_no = 1;
-    for (vector<ctbLayer>::iterator it = myCTB.layer_data.begin(); it != myCTB.layer_data.end(); it++) {
+    for (vector<ctbLayer>::iterator it = ctbData.all_layer_data.begin(); it != ctbData.all_layer_data.end(); it++) {
         ctbLayer layer = *it;
 
         // Build bitmaps from the layer data and their encrypted versions
-        Mat imlayer = getLayerImageRL7(layer, im_width, im_heigth);
+        Mat imlayer = myCTB.getLayerImageRL7(layer, im_width, im_heigth);
         layer_bmp my_layer_bmp;
 
         int ctr = nonce + layer_no / res;
 
         BOOL encrypt = (it >= it_iniLayer && it < it_endLayer);
         if (encrypt)
-            my_layer_bmp = encrypt_area(imlayer, area, key, ctr, res);
+            my_layer_bmp = myCTB.encrypt_area(imlayer, area, key, ctr, res);
         else {
             my_layer_bmp.layer_ct = imlayer;
             my_layer_bmp.layer_pt = imlayer;

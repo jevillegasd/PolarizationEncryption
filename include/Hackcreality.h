@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../include/ctb_file.h" 
-#include "../include/aes_ctr.h"
+#include "ctb_file.h" 
+#include "aes_ctr.h"
 
 #define _WINNT_WIN32 0600
 
@@ -59,7 +59,6 @@ struct screens
 
 BOOL openFileDialog(std::wstring* file_name);
 cv::Mat rotateImage(cv::Mat image, double angle);
-std::string wstr2str(const std::wstring& wstr);
 
 std::string displayimage(cv::Mat image, std::string window_name);
 std::string displayimage_fs(cv::Mat image, std::string window_name);
