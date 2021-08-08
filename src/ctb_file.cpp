@@ -324,16 +324,30 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
     m_ctb_data.preview1 = getPreview(preview1, (int)prev1_header[0], (int)prev1_header[1]);   // *****m_ctb_data being modified here*****//
     m_ctb_data.preview2 = getPreview(preview2, (int)prev2_header[0], (int)prev2_header[1]);   // *****m_ctb_data being modified here*****//
 
+    
+    // -- Save the file data into a vector m_ctb_data_vec.
+    ifstream ctbfstream;
+    ctbfstream.open(m_ctb_fname, std::ifstream::binary);
+    if (!ctbfstream)
+    {
+        std::cout << "Cannot open " << m_ctb_fname << std::endl;
+        std::cout << "Failed to prepare all layers" << std::endl;
+    }
+
+    m_ctb_data_vec = std::vector<uint8_t>(std::istreambuf_iterator<char>(ctbfstream), std::istreambuf_iterator<char>());
+
+    ctbfstream.close();
+
+
     m_layer_prepd = true;
     m_no_layers = m_ctb_data.layer_i_addr.size();
+
 
     // -- Prepare all layer data and put them in vector all_layer_data
     if (prep_all_data)
     {
         prep_all_layer_data();
-    }
-        
-   
+    } 
 }
 
 
@@ -344,7 +358,18 @@ void CTB::prep_all_layer_data()
     if (m_layer_prepd)
     {
         for (int i = 0; i < m_no_layers; i++)
+        {
+            if (VERBOSE)
+            {
+                if ((i % 10) == 0)
+                {
+
+                    std::cout << "Loading layer " << i << " of " << m_no_layers << std::endl;
+                }
+            }
+            
             m_ctb_data.all_layer_data.push_back(get_layer(i));
+        }
     }
 }
 
@@ -357,26 +382,13 @@ vector<uint8_t> CTB::get_layer(int i)
 
     if (m_layer_prepd)    // -- Check if the file had been parsed for layer_i_addr and layer_i_len
     {
-        ifstream ifstrm;
-        ifstrm.open(m_ctb_fname, std::ifstream::binary);
-        if (!ifstrm)
-        {
-            std::cout << "Cannot open " <<  m_ctb_fname << std::endl;
-            return lyr_data;
-        }
-
         uint32_t pos = m_ctb_data.layer_i_addr[i];
         uint32_t len = m_ctb_data.layer_i_len[i];
 
-        auto temp = std::vector<uint8_t>(std::istreambuf_iterator<char>(ifstrm), std::istreambuf_iterator<char>());;
-
         for (int j = pos; j < len + pos; j++)
         {
-            lyr_data.push_back(temp[j]);
+            lyr_data.push_back(m_ctb_data_vec[j]);
         }
-
-        ifstrm.close();
-
     }
     else
     {
@@ -909,7 +921,7 @@ void CTB::decrypt_ctb_file(wstring output)
     {
         decrypted = encrypt_decrypt_86(get_layer(j), j);
         add_layer_to_ctb(ctbfilestrm, decrypted, m_ctb_data.layer_len_addr[j]);
-        std::cout << ".";
+        std::cout <<".";
     }
 
     std::cout << "\nFinished decrypting file " << m_ctb_fname << std::endl << std::endl;
@@ -969,21 +981,26 @@ void CTB::encrypt_ctb_file(uint32_t key, wstring output)
 // -- Get header information (i.e file header, preview images, table of layer data) only.
 std::vector<uint8_t> CTB::get_file_header()
 {
-    std::vector<uint8_t> header;
-
-    std::ifstream ifstrm(m_ctb_fname, std::ifstream::binary);
-    if (!ifstrm)
+    if (m_layer_prepd)
     {
-        std::cout << "Cannot open " << m_ctb_fname << std::endl;
+        // Get stream of bytes of the file
+
+        // -- Retain all data before the first layer data.
+        vector<uint8_t>::const_iterator first = m_ctb_data_vec.begin();
+        vector<uint8_t>::const_iterator last = m_ctb_data_vec.begin() + m_ctb_data.layer_i_addr[0];
+        vector<uint8_t> header(first, last);
+
         return header;
     }
+    else
+    {
+        std::cout << "This ctb file has not been prepared and hence header cannot be extracted" << std::endl;
+        std::cout << "Run CTB.prep_ctb_file(filename) or construct a CTB object with a filename" << std::endl;
+        std::cout << "Returning empty vector ..." << std::endl;
 
-    // Get stream of bytes of the file
-    header = std::vector<uint8_t>(std::istreambuf_iterator<char>(ifstrm), std::istreambuf_iterator<char>());
-
-    header.resize(m_ctb_data.layer_i_addr[0]); // -- Retain all data before the first layer data.
-
-    return header;
+        vector<uint8_t> header;
+        return header;
+    }
 
     if (VERBOSE)
     {

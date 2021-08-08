@@ -130,6 +130,7 @@ class CTB
         void add_layer_to_ctb(ofstream& ctbstrm, const std::vector<uint8_t>& layer_data, const std::uint32_t len_addr);
 
     private:
+        vector<uint8_t> m_ctb_data_vec;
         
         
 };
