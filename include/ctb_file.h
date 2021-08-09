@@ -50,11 +50,12 @@ constexpr int BITMAP_HEADER_SIZE_DEPTH_24 = 54;
 
 #include <opencv2/opencv.hpp>
 
+//vector<uint8_t> with data from a layer image enconded using RLE7  
 typedef  std::vector<uint8_t> ctbLayer;
 
 
 std::string wstr2str(const std::wstring& wstr);
-void print_layer_hex(const vector<uint8_t>& layer_data);
+void print_layer_hex(const std::vector<uint8_t>& layer_data);
 
 
 
@@ -96,16 +97,21 @@ class CTB
         std::vector<uint8_t> encode_rle7(std::vector<uint8_t>& unencoded);
         std::vector<uint8_t> decode_rle7(std::vector<uint8_t>& encoded);
         ctbLayer             encode_rle7(cv::Mat unencoded);
+
+        ctbLayer    encode_rle7_byte(std::vector<uint8_t>& unencoded);
+        ctbLayer    decode_rle7_byte(std::vector<uint8_t>& unencoded);
   
         inline uint32_t get_runlen(std::vector<uint8_t>::iterator& it);
-        uint32_t    decode(std::vector<uint8_t>::iterator& it, int numbytes);
-        cv::Mat     enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res);
+        uint32_t    decode  (std::vector<uint8_t>::iterator& it, int numbytes);
+        cv::Mat     enc2bmp (std::vector<uint8_t> enc, cv::Size area, int res);
         std::vector<uint8_t> encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv);
         layer_bmp   encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int resolution);
-        inline void push_encoded(vector<uint8_t>& encoded, bitset<8>::reference& c, uint32_t runlen, bitset<2>& ref);
+        inline void push_encoded(std::vector<uint8_t>& encoded, std::bitset<8>::reference& c, uint32_t runlen, std::bitset<2>& ref);
 
         void        decrypt_ctb_file(std::wstring output);
         void        encrypt_ctb_file(uint32_t key, std::wstring output);
+        
+
         std::ofstream    create_ctb(const std::vector<uint8_t>& header, std::string ctbfname);
         void        add_layer_to_ctb(std::ofstream& ctbstrm, const std::vector<uint8_t>& layer_data, const std::uint32_t len_addr);
         

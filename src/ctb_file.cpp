@@ -792,8 +792,8 @@ ctbLayer CTB::encode_rle7(cv::Mat bitmap)
         }
     }
 
-    vector<uint8_t> encoded = onebyte;
-    // call vector<uint8_t> encoded = this->encode_rle7(vector<uint8_t>& onebyte)
+    vector<uint8_t> encoded = this->encode_rle7_byte(onebyte);
+
     return encoded;
 }
 
