@@ -31,47 +31,50 @@ std::string wstr2str(const std::wstring& wstr)
 }
 
 
-void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
+CTB::CTB()
 {
-    // -- Return if filename has not been changed and layer had been previously prepared
-    if ((fname == L"default" && this->m_layer_prepd) || (wstr2str(fname) == m_ctb_fname))
-    {
-        std::cout << m_ctb_fname << " has already been prepared" << std::endl;
-        return;
-    }
+    m_read = false;
 
+    m_no_layers = 0;
+    m_layer_width = 0;
+    m_layer_height = 0;
+    
+    m_ctb_fname = "";
+}
+
+CTB::CTB(wstring fname)
+{
+    m_no_layers = 0;
+    m_layer_width = 0;
+    m_layer_height = 0;
+
+    read_CTB(fname);
+}
+
+
+void CTB::read_CTB(wstring fname)
+{
     FILE* stream;
 
+    std::string filename = wstr2str(fname);
+    this->m_ctb_fname = filename;
+    
+    this->m_read = false; // -- Set to true at the end of this function
+
     // -- Empty vectors incase they have been used previously
-    m_ctb_data.layer_data.clear();
-    m_ctb_data.layer_i_addr.clear();
-    m_ctb_data.layer_len_addr.clear();
+    this->m_header.clear();
+    this->m_layer_data.clear();
+    this->m_layer_i_len.clear();
+    this->m_layer_i_addr.clear();
+    this->m_layer_len_addr.clear();
+    
 
-    string filename;
-
-    if (fname == L"default")
-    {
-        if (!m_ctb_fname.empty())
-        {
-            filename = m_ctb_fname;
-        }
-        else
-        {
-            std::cout << "No file to open." << std::endl;
-            return;
-        }
-    }
-    else
-    {
-        m_ctb_fname = wstr2str(fname);
-        filename = wstr2str(fname);
-    }
-        
-    uint32_t buffer[BUFFERSIZE];
-    uint32_t header[HEADERCNT];
-    uint32_t stream_i, indi;
-    size_t numread;
     int err;
+    size_t numread;
+    uint32_t stream_i, indi;
+    uint32_t header[HEADERCNT];
+    uint32_t buffer[BUFFERSIZE];
+
 
     stream = fopen(filename.c_str(), "rb"); //Open the file in binary mode
     if (VERBOSE) 
@@ -87,8 +90,8 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
         if (VERBOSE) printf("\nGENERAL HEADER 0x%x \t %x", stream_i, *buffer);
     }
 
-
-    m_ctb_data.encrypt_key = header[25];                // *****ctb_data being modified here*****//
+    // -- Get encrypton key
+    this->m_encrypt_key = header[25];
 
 
     int layer_width = header[CTB_MHEADER_RESX];
@@ -117,24 +120,27 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
     }
 
     //Then read the preview 1 data
+    int PACKSIZE = 1;
     uint32_t prev1dat_add, prev1dat_len;
     prev1dat_add = prev1_header[2];
     prev1dat_len = prev1_header[3];
     std::vector<uint16_t> preview1;
-    int PACKSIZE = 1;
 
     while (stream_i < prev1dat_len + prev1dat_add) 
     {
         indi = (stream_i - prev1dat_add) / PRDATASIZE;
         numread = fread_s(buffer, BUFFERSIZE, PRDATASIZE, PACKSIZE, stream);
-        if (numread == 0) {
+        if (numread == 0) 
+        {
             if (VERBOSE) printf("\nError reading address 0x%x", stream_i);
         }
-        else {
+        else 
+        {
 
             preview1.push_back(*buffer);
 
-            if (VERBOSE) {
+            if (VERBOSE) 
+            {
                 if ((stream_i - prev1dat_add) % 16 == 0) { printf("\nPREVIEW1 ADDRESS 0x%x \t %x", stream_i, (uint16_t)*buffer); }
                 else { printf("\t %x", (uint16_t)*buffer); }
             }
@@ -148,12 +154,14 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
 
     //First read the preview 2 header
     uint32_t prev2_header[8];
-    while (stream_i < preview2h_add - 1) { //Dump any parsing data
+    while (stream_i < preview2h_add - 1) //Dump any parsing data
+    { 
         fread_s(buffer, BUFFERSIZE, HDATASIZE, 1, stream);
         stream_i += HDATASIZE;
     }
 
-    while (stream_i < preview2h_add + previewh_len) {
+    while (stream_i < preview2h_add + previewh_len) 
+    {
         indi = (stream_i - preview2h_add) / HDATASIZE;
         numread = fread_s(buffer, BUFFERSIZE, HDATASIZE, 1, stream);
         prev2_header[indi] = *buffer;
@@ -172,12 +180,14 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
         indi = (stream_i - prev2dat_add) / PRDATASIZE;
         numread = fread_s(buffer, BUFFERSIZE, PRDATASIZE, PACKSIZE, stream);
 
-        if (numread == 0) {
+        if (numread == 0) 
+        {
             if (VERBOSE) printf("\nError reading address 0x%x", stream_i);
         }
         else {
             preview2.push_back(*buffer);
-            if (VERBOSE) {
+            if (VERBOSE) 
+            {
                 if ((stream_i - prev2dat_add) % 16 == 0) { printf("\nPREVIEW2 ADDRESS 0x%x \t %x", stream_i, (uint16_t)*buffer); }
                 else { printf("\t %x", (uint16_t)*buffer); }
             }
@@ -191,7 +201,8 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
     pparam_len = header[CTB_HEADER_PNTLEN];
 
     uint32_t* print_header = new uint32_t[pparam_len / HDATASIZE];
-    while (stream_i < pparam_add + pparam_len) {
+    while (stream_i < pparam_add + pparam_len) 
+    {
         indi = (stream_i - pparam_add) / HDATASIZE;
         numread = fread(buffer, HDATASIZE, 1, stream);
         print_header[indi] = *buffer;
@@ -243,13 +254,15 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
         layerh_addi = (stream_i);     //Address if the ith layer
         std::vector<uint32_t> layer_header;
         std::vector<uint32_t> layer_header_idx;
-        while (stream_i < layerh_addi + LDATASIZE) {
+        while (stream_i < layerh_addi + LDATASIZE) 
+        {
             indi = (stream_i - layerh_addi) / HDATASIZE;
             numread = fread(buffer, HDATASIZE, 1, stream);
             layer_header.push_back(*buffer);
             layer_header_idx.push_back(stream_i);
 
-            if (VERBOSE) {
+            if (VERBOSE) 
+            {
                 float tmp; //Temporary variable to store the printed float interpretation.
                 std::memcpy(&tmp, &buffer, sizeof(float));
                 if (indi < 3) {
@@ -274,9 +287,9 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
     */
     uint32_t layeri_add, layeri_len;
 
-    m_ctb_data.layer_heigth = layer_heigth;   // *****m_ctb_data being modified here*****//
-    m_ctb_data.layer_width = layer_width;     // *****m_ctb_data being modified here*****//
-    //std::vector<std::vector<uint8_t>> layer_data;
+    this->m_layer_width = layer_width;
+    this->m_layer_height = layer_heigth;   
+    
     int k = 0;
     for (auto it = layer_headers.begin(); it != layer_headers.end(); ++it) 
     {
@@ -284,24 +297,22 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
         layeri_add = layer_header[3];
         layeri_len = layer_header[4];
 
-        m_ctb_data.layer_i_len.push_back(layeri_len);                     // *****m_ctb_data being modified here*****//
-        m_ctb_data.layer_i_addr.push_back(layeri_add);                    // *****m_ctb_data being modified here*****//
-        m_ctb_data.layer_len_addr.push_back(layer_headers_idxs[k][4]);    // *****m_ctb_data being modified here*****//
+        this->m_layer_i_len.push_back(layeri_len);                     
+        this->m_layer_i_addr.push_back(layeri_add);                    
+        this->m_layer_len_addr.push_back(layer_headers_idxs[k][4]);
 
 
-        if (VERBOSE)
-            printf("\n");
+        if (VERBOSE) printf("\n");
 
-        while (stream_i < layeri_add - 1) 
-        { //Dump data before the start of the layer data (repeated header)
+        while (stream_i < layeri_add - 1) //Dump data before the start of the layer data (repeated header)
+        { 
             fread(buffer, HDATASIZE, 1, stream);
-            //printf("\nDUMP DATA 0x%x \t %x", stream_i, *buffer);
             stream_i += HDATASIZE;
         }
 
-        uint8_t PIXELDSIZE = 1;
         int indi = 0;
-
+        uint8_t PIXELDSIZE = 1;
+        
         while (stream_i < layeri_add + layeri_len) //Dump any parsing data
         { 
             indi = stream_i - layeri_add;
@@ -320,73 +331,148 @@ void CTB::prep_ctb_file(wstring fname = L"default", bool prep_all_data=0)
 
     std::cout << "Finished processing header information ..." << std::endl;
 
+    this->m_no_layers = m_layer_i_addr.size();
+
+    std::cout << "Total no of layers: " << m_no_layers << std::endl;
+
     fclose(stream);
 
-    m_ctb_data.preview1 = this->getPreview(preview1, (int)prev1_header[0], (int)prev1_header[1]);   // *****m_ctb_data being modified here*****//
-    m_ctb_data.preview2 = this->getPreview(preview2, (int)prev2_header[0], (int)prev2_header[1]);   // *****m_ctb_data being modified here*****//
+    this->m_preview1 = getPreview(preview1, (int)prev1_header[0], (int)prev1_header[1]);
+    this->m_preview2 = getPreview(preview2, (int)prev2_header[0], (int)prev2_header[1]);
 
-    m_layer_prepd = true;
-    m_no_layers = m_ctb_data.layer_i_addr.size();
+    std::cout << "Finished getting preview images ..." << std::endl;
 
-    // -- Prepare all layer data and put them in vector all_layer_data
-    if (prep_all_data)
-    {
-        prep_all_layer_data();
-    }
-        
-   
+    this->m_header      = get_file_header();
+    this->m_layer_data  = get_all_layers();
+
+
+    this->m_read = true;
 }
 
 
 
-// -- Prepares all the layer data into a member variable all_layer_data
-void CTB::prep_all_layer_data()
+// -- Returns a vector of all the layers
+vector<vector<uint8_t>> CTB::get_all_layers()
 {
-    if (m_layer_prepd)
+    vector<vector<uint8_t>> layers_data;
+
+    if (m_read)
     {
-        for (int i = 0; i < m_no_layers; i++)
-            this->m_ctb_data.all_layer_data.push_back(get_layer(i));
-    }
-}
-
-
-
-// -- Selectively get layer i from CTB file
-ctbLayer CTB::get_layer(int i)
-{
-    ctbLayer lyr_data;
-
-    if (m_layer_prepd)    // -- Check if the file had been parsed for layer_i_addr and layer_i_len
-    {
-        ifstream ifstrm;
-        ifstrm.open(m_ctb_fname, std::ifstream::binary);
-        if (!ifstrm)
-        {
-            std::cout << "Cannot open " <<  m_ctb_fname << std::endl;
-            return lyr_data;
-        }
-
-        size_t pos = m_ctb_data.layer_i_addr[i];
-        size_t len = m_ctb_data.layer_i_len[i];
-
-        auto temp = std::vector<uint8_t>(std::istreambuf_iterator<char>(ifstrm), std::istreambuf_iterator<char>());;
-
-        for (size_t j = pos; j < len + pos; j++)
-        {
-            lyr_data.push_back(temp[j]);
-        }
-
-        ifstrm.close();
-
+        return m_layer_data;
     }
     else
     {
-        std::cout << "Layers have not been prepared yet" << std::endl;
+        ifstream ctbfstream(m_ctb_fname, std::ifstream::binary);
+        if (!ctbfstream)
+        {
+            std::cout << "Cannot open " << m_ctb_fname << std::endl;
+            std::cout << "Failed to get all layers" << std::endl;
+        }
+
+        auto file_vec = std::vector<uint8_t>(std::istreambuf_iterator<char>(ctbfstream), std::istreambuf_iterator<char>());
+        ctbfstream.close();
+
+
+        vector<uint8_t> lyr_data;
+        for (int i = 0; i < m_no_layers; i++)
+        {
+            lyr_data.clear();
+
+            if (VERBOSE)
+            {
+                if ((i % 10) == 0)
+                {
+
+                    std::cout << "Loading layer " << i << " of " << m_no_layers << std::endl;
+                }
+            }
+
+            uint32_t pos = m_layer_i_addr[i];
+            uint32_t len = m_layer_i_len[i];
+
+            for (int j = pos; j < len + pos; j++)
+            {
+                lyr_data.push_back(file_vec[j]);
+            }
+
+            layers_data.push_back(lyr_data);
+            
+        }
     }
 
-    return lyr_data;
+    return layers_data;
+
 }
 
+
+
+// -- Returns layer i
+vector<uint8_t> CTB::get_layer(int i)
+{
+    vector<uint8_t> d;
+    if (m_read)    // -- Check if the file has been parsed for layer_i_addr and layer_i_len
+    {
+        return m_layer_data[i];
+    }
+    else
+    {
+        std::cout << "Layers have not been prepared yet. Returning empty vector ..." << std::endl;
+        return d;
+    }
+}
+
+
+int CTB::get_height()
+{
+    return m_layer_height;
+}
+
+
+int CTB::get_width()
+{
+    return m_layer_width;
+}
+
+
+int CTB::get_no_layers()
+{
+    return m_no_layers;
+}
+
+
+bool CTB::ready()
+{
+    return m_read;
+}
+
+uint32_t CTB::get_key()
+{
+    if (!m_read)
+    {
+        std::cout << "No file loaded yet. Returning empty uint32_t ..." << std::endl;
+    }
+    return m_encrypt_key;
+}
+
+
+cv::Mat CTB::get_preview1()
+{
+    if (!m_read)
+    {
+        std::cout << "No file loaded yet. Returning empty cv::Mat ..." << std::endl;
+    }
+    return m_preview1;
+}
+
+
+cv::Mat CTB::get_preview2()
+{
+    if (!m_read)
+    {
+        std::cout << "No file loaded yet. Returning empty cv::Mat ..." << std::endl;
+    }
+    return m_preview2;
+}
 
 
 //This function draws an image following the BMP file specification for a color image.
@@ -608,7 +694,7 @@ std::vector<uint8_t> CTB::encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t
     std::vector<uint8_t> result;
 
     // Multiplication and Addition is in modulo 2^32. operations * and + are automatically modulo 2^32 for uint32_t.
-    uint32_t c = m_ctb_data.encrypt_key * 0x2D83'CDAC + 0xD8A8'3423;
+    uint32_t c = m_encrypt_key * 0x2D83'CDAC + 0xD8A8'3423;
 
     uint32_t X = (iv * 0x1E15'30CD + 0xEC3D'47CD) * c;
 
@@ -879,7 +965,7 @@ vector<uint8_t> CTB::decode_rle7(vector<uint8_t>& encoded)
 
 void CTB::decrypt_ctb_file(wstring output)
 {
-    if (m_ctb_data.encrypt_key == 0x0000'0000)
+    if (m_encrypt_key == 0x0000'0000)
     {
         std::cout << "CTB file " << m_ctb_fname << " is not encrypted. returning ..." << std::endl;
         return;
@@ -893,7 +979,7 @@ void CTB::decrypt_ctb_file(wstring output)
         header[i] = 0x00;
     }
         
-    string outfilename = wstr2str(std::filesystem::current_path().wstring()) + "\\models\\box\\" + wstr2str(output);
+    string outfilename = wstr2str(std::filesystem::current_path().wstring()) + "\\models\\outputs\\" + wstr2str(output);
     ofstream ctbfilestrm = create_ctb(header, outfilename);
 
     // -- Free memory
@@ -906,8 +992,8 @@ void CTB::decrypt_ctb_file(wstring output)
     for (int j = 0; j < this->m_no_layers; j++)
     {
         decrypted = encrypt_decrypt_86(get_layer(j), j);
-        add_layer_to_ctb(ctbfilestrm, decrypted, m_ctb_data.layer_len_addr[j]);
-        std::cout << ".";
+        add_layer_to_ctb(ctbfilestrm, decrypted, m_layer_len_addr[j]);
+        std::cout <<".";
     }
 
     std::cout << "\nFinished decrypting file " << m_ctb_fname << std::endl << std::endl;
@@ -920,15 +1006,15 @@ void CTB::decrypt_ctb_file(wstring output)
 // Enter key in Little Endiannes Format
 void CTB::encrypt_ctb_file(uint32_t key, wstring output)
 {
-    if (m_ctb_data.encrypt_key != 0x0000'0000)
+    if (m_encrypt_key != 0x0000'0000)
     {
         std::cout << "CTB file " << m_ctb_fname << " is already encrypted. Returning ..." << std::endl;
-        std::cout << "Key is: " << m_ctb_data.encrypt_key << std::endl;
+        std::cout << "Key is: " << m_encrypt_key << std::endl;
         std::cout << "Alternatively decrypt and then re-encrypt with another key" << std::endl;
         return;
     }
 
-    m_ctb_data.encrypt_key = key;
+    m_encrypt_key = key;
 
     // -- Get the header (excluding layer data) from the ctb file
     auto header = get_file_header();
@@ -939,7 +1025,7 @@ void CTB::encrypt_ctb_file(uint32_t key, wstring output)
         header[i] = static_cast<uint8_t>(key >> (i - 100) * 8);
     }
 
-    string outfilename = wstr2str(std::filesystem::current_path().wstring()) + "\\models\\box\\" + wstr2str(output);
+    string outfilename = wstr2str(std::filesystem::current_path().wstring()) + "\\models\\outputs\\" + wstr2str(output);
     ofstream ctbfilestrm = create_ctb(header, outfilename);
 
     // -- Free memory
@@ -952,7 +1038,7 @@ void CTB::encrypt_ctb_file(uint32_t key, wstring output)
     for (int j = 0; j < this->m_no_layers; j++)
     {
         encrypted = encrypt_decrypt_86(get_layer(j), j);
-        add_layer_to_ctb(ctbfilestrm, encrypted, m_ctb_data.layer_len_addr[j]);
+        add_layer_to_ctb(ctbfilestrm, encrypted, m_layer_len_addr[j]);
         std::cout << ".";
     }
 
@@ -967,19 +1053,27 @@ void CTB::encrypt_ctb_file(uint32_t key, wstring output)
 // -- Get header information (i.e file header, preview images, table of layer data) only.
 std::vector<uint8_t> CTB::get_file_header()
 {
-    std::vector<uint8_t> header;
+    vector<uint8_t> header;
 
-    std::ifstream ifstrm(m_ctb_fname, std::ifstream::binary);
-    if (!ifstrm)
+    if (m_read)
     {
-        std::cout << "Cannot open " << m_ctb_fname << std::endl;
-        return header;
+        return m_header;
+
     }
+    else
+    {
+        ifstream ctbfstream(m_ctb_fname, std::ifstream::binary);
+        if (!ctbfstream)
+        {
+            std::cout << "Cannot open " << m_ctb_fname << std::endl;
+            std::cout << "Failed to get all layers" << std::endl;
+        }
 
-    // Get stream of bytes of the file
-    header = std::vector<uint8_t>(std::istreambuf_iterator<char>(ifstrm), std::istreambuf_iterator<char>());
+        header = std::vector<uint8_t>(std::istreambuf_iterator<char>(ctbfstream), std::istreambuf_iterator<char>());
+        ctbfstream.close();
 
-    header.resize(m_ctb_data.layer_i_addr[0]); // -- Retain all data before the first layer data.
+        header.resize(m_layer_i_addr[0]);
+    }
 
     return header;
 
