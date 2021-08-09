@@ -28,7 +28,7 @@ struct encryption_prop
     uint8_t key[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF };
     uint64_t nonce = 0;
-    int extract_dim = 100;  // Dimension of the square area encrypted
+    int extract_dim = 50;  // Dimension of the square area encrypted
     int i_inilayer = 0, i_endLayer = 10; // First and last layers to encrypt
     int res = 10;           // 2D resolution of the encryption in pixels
     cv::Rect area;

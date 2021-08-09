@@ -352,7 +352,7 @@ void CTB::read_CTB(wstring fname)
 
 
 // -- Returns a vector of all the layers
-vector<vector<uint8_t>> CTB::get_all_layers()
+vector<ctbLayer> CTB::get_all_layers()
 {
     vector<vector<uint8_t>> layers_data;
 
@@ -407,7 +407,7 @@ vector<vector<uint8_t>> CTB::get_all_layers()
 
 
 // -- Returns layer i
-vector<uint8_t> CTB::get_layer(int i)
+ctbLayer CTB::get_layer(int i)
 {
     vector<uint8_t> d;
     if (m_read)    // -- Check if the file has been parsed for layer_i_addr and layer_i_len
@@ -472,6 +472,17 @@ cv::Mat CTB::get_preview2()
         std::cout << "No file loaded yet. Returning empty cv::Mat ..." << std::endl;
     }
     return this->m_preview2;
+}
+
+
+vector<uint32_t>  CTB::get_layer_len_addrs()
+{
+    if (!m_read)
+    {
+        std::cout << "No file loaded yet. Returning empty layer length addresses ..." << std::endl;
+    }
+
+    return m_layer_len_addr;
 }
 
 
@@ -679,7 +690,7 @@ cv::Mat CTB::enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res)
 
 
 
-std::vector<uint8_t> CTB::encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv)
+ctbLayer CTB::encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv)
 {
     /// <summary>
     /// This function encrypts or decrypts a layer using an XOR based stream cipher. 
@@ -690,6 +701,13 @@ std::vector<uint8_t> CTB::encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t
     /// <param name="data"> Uint8_t vector of the layer data</param>
     /// <param name="iv"> The current layer index i.e 0 for bottom layer, 1 for the next layer and so on</param>
     /// <returns> Function returns a vector of the encrypted/decrypted layer data</returns>
+
+
+    if (this->m_encrypt_key == 0x0000'0000)
+    {
+        return data;
+    }
+        
 
     std::vector<uint8_t> result;
 
@@ -771,11 +789,11 @@ inline void CTB::push_encoded(vector<uint8_t>& encoded, bitset<8>::reference& c,
 }
 
 
+
 // RLE7 Encoding from Image Mat structrure
 ctbLayer CTB::encode_rle7(cv::Mat bitmap)
 {
-    
-
+   
     vector < uint8_t> onebyte;
 
     
@@ -785,8 +803,10 @@ ctbLayer CTB::encode_rle7(cv::Mat bitmap)
     else
         bitmap.copyTo(greyMat);
 
-    for (int x = 0; x < greyMat.cols; x++) {
-        for (int y = 0; y < greyMat.rows; y++) {
+    for (int x = 0; x < greyMat.cols; x++) 
+    {
+        for (int y = 0; y < greyMat.rows; y++) 
+        {
             uint8_t pixel = (uint8_t) greyMat.at<uchar>(y, x)>>1;
             onebyte.push_back(pixel);
         }
@@ -798,7 +818,8 @@ ctbLayer CTB::encode_rle7(cv::Mat bitmap)
 }
 
 
-vector<uint8_t> CTB::encode_rle7_byte(vector<uint8_t>& unencoded)
+
+ctbLayer CTB::encode_rle7_byte(vector<uint8_t>& unencoded)
 {
     vector<uint8_t> encoded;
     auto it = unencoded.begin();
@@ -919,7 +940,7 @@ vector<uint8_t> CTB::encode_rle7_byte(vector<uint8_t>& unencoded)
 
 
 // RLE7 Encoding scheme -- optimized for memory
-vector<uint8_t> CTB::encode_rle7(vector<uint8_t>& unencoded)
+ctbLayer CTB::encode_rle7(vector<uint8_t>& unencoded)
 {
     vector<uint8_t> encoded;
     auto it = unencoded.begin(); 
@@ -989,7 +1010,7 @@ inline uint32_t CTB::get_runlen(vector<uint8_t>::iterator& it)
 }
 
 
-vector<uint8_t> CTB::decode_rle7_byte(vector<uint8_t>& encoded)
+ctbLayer CTB::decode_rle7_byte(vector<uint8_t>& encoded)
 {
     vector<uint8_t> decoded;
 
@@ -1024,7 +1045,7 @@ vector<uint8_t> CTB::decode_rle7_byte(vector<uint8_t>& encoded)
 
 
 // - RLE7 Decompressing/Decoding -- implementation for memory optimization
-vector<uint8_t> CTB::decode_rle7(vector<uint8_t>& encoded)
+ctbLayer CTB::decode_rle7(vector<uint8_t>& encoded)
 {
     vector<uint8_t> decoded;
 
@@ -1194,7 +1215,7 @@ void CTB::encrypt_ctb_file(uint32_t key, wstring output)
         return;
     }
 
-    m_encrypt_key = key;
+    this->m_encrypt_key = key;
 
     // -- Get the header (excluding layer data) from the ctb file
     auto header = this->get_file_header();
@@ -1231,7 +1252,7 @@ void CTB::encrypt_ctb_file(uint32_t key, wstring output)
 
 
 // -- Get header information (i.e file header, preview images, table of layer data) only.
-std::vector<uint8_t> CTB::get_file_header()
+ctbLayer CTB::get_file_header()
 {
     vector<uint8_t> header;
 
@@ -1264,6 +1285,7 @@ std::vector<uint8_t> CTB::get_file_header()
 }
 
 
+
 // - Create a bare ctb file with headers only. Layer data will be added later.
 ofstream CTB::create_ctb(const vector<uint8_t>& header, string ctbfname)
 {
@@ -1292,11 +1314,13 @@ ofstream CTB::create_ctb(const vector<uint8_t>& header, string ctbfname)
 }
 
 
+
 // -- Add one layer to a ctb file
 void CTB::add_layer_to_ctb(
         ofstream& ctbstrm,
         const std::vector<uint8_t>& layer_data,
-        const std::uint32_t len_addr){
+        const std::uint32_t len_addr)
+{
     ctbstrm.seekp(0, ios_base::end);
 
     // -- Holds the address of the current data to be written to file

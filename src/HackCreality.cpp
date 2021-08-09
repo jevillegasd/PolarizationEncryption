@@ -194,27 +194,7 @@ void messageParser(int* option)
         
         case 5:
         {
-            *option = 0;
-            wstring file_name;
-            if (openFileDialog(&file_name))
-            {
-                in_ctb.assign(file_name);
-                myCTB.read_CTB(in_ctb);
-
-                auto x = myCTB.get_layer(0);
-                print_layer_hex(x);
-
-                auto y = myCTB.decode_rle7_byte(x);
-
-                //print_layer_hex(y);
-
-                auto z = myCTB.encode_rle7_byte(y);
-
-                print_layer_hex(z);
-
-            }
-            break;
-
+           
         }
         case 7: 
         {
@@ -387,10 +367,12 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
     int nonce = prop.nonce;
     uint8_t* key{ prop.key };
 
-    auto all_layers = myCtb.get_all_layers();
-    int no_layers   = myCtb.get_no_layers();
-    vector<ctbLayer>::iterator it_end     = all_layers.end();
-    vector<ctbLayer>::iterator it_begin   = all_layers.begin();
+    auto all_layers  = myCtb.get_all_layers();
+    int  no_layers   = myCtb.get_no_layers();
+    vector<uint32_t> layer_len_addrs        = myCtb.get_layer_len_addrs();
+    vector<ctbLayer>::iterator it_end       = all_layers.end();
+    vector<ctbLayer>::iterator it_begin     = all_layers.begin();
+
 
     //Only decrypt the layers between i_iniLayer and i_endLayer
     vector<ctbLayer>::iterator it_iniLayer = it_begin + \
@@ -405,7 +387,7 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
     encProp.area = area;
 
    
-    ofstream newCTB = newCTB_fstream(myCTB, save_path);
+    ofstream newCTB = newCTB_fstream(myCtb, save_path);
 
     string window_name = "draw";
     
@@ -423,34 +405,55 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
         //int ctr = nonce + layer_no / res; // A different encryption every res layers
         int ctr = nonce + layer_no;
 
+        ctbLayer layer2file;
+
         //Only modify the layers between iniLayer and endLayer
         BOOL encrypt = (it >= it_iniLayer && it < it_endLayer);
-        if (encrypt) {
-            my_layer_bmp = myCtb.encrypt_area(imlayer, area, key, ctr, res);
-            layer = myCtb.encode_rle7(my_layer_bmp.layer_ct);
+        if (encrypt) 
+        {
+            my_layer_bmp    = myCtb.encrypt_area(imlayer, area, key, ctr, res);
+            layer2file      = myCtb.encode_rle7(my_layer_bmp.layer_ct);
         }
         else 
         {
-            my_layer_bmp.layer_ct =     imlayer;
-            my_layer_bmp.layer_pt =     imlayer;
-            my_layer_bmp.layer_enc =    cv::Mat(imlayer.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
+            my_layer_bmp.layer_ct   = imlayer;
+            my_layer_bmp.layer_pt   = imlayer;
+            my_layer_bmp.layer_enc  = cv::Mat(imlayer.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
+            layer2file              = myCtb.encode_rle7(my_layer_bmp.layer_ct);
         }
 
-        //Generate the RLE7 descruption of the generate image
-        displayimage(my_layer_bmp.layer_ct, window_name);
-        waitKey(10);
-        
-       //My guess is that the length that I am using here doesnt really work.
-        vector<uint8_t> x86encrypted_ctLayer = myCtb.encrypt_decrypt_86(layer, layer_no - 1);
-        myCtb.add_layer_to_ctb(newCTB, x86encrypted_ctLayer, x86encrypted_ctLayer.size());
+        //**********************************************************
+        // -- Backward conversion ctbLayer to cv::Mat
+        /*Mat imlayer22   = myCtb.getLayerImageRL7(myCtb.decode_rle7_byte(layer2file), im_width, im_heigth);
+
+        auto test       = myCtb.encode_rle7(imlayer22);
+
+        std::cout << "Layer " << layer_no << std::endl;
+        print_layer_hex(layer2file);
+        std::cout << "\n";
+        print_layer_hex(test);
+
+        std::cout << "\n\n";*/
+
+        // --Test if the conversion backand forth between cv::Matand ctbLayer introduces any errors.
+            //    The image printed should be the same as that of my_layer_bmp.layer_ct if there are no 
+            //    problems introduced during conversion.
+        //Generate the RLE7 description of the generate image
+       /* displayimage(my_layer_bmp.layer_ct, window_name);
+        waitKey(10);*/
+        /*displayimage(imlayer22, window_name);
+        waitKey(10);*/
+        //***************************************************************
+
+
+       // Encrypt layer and then write the layer to the ctb file;
+        vector<uint8_t> x86encrypted_ctLayer = myCtb.encrypt_decrypt_86(layer2file, layer_no - 1);
+        myCtb.add_layer_to_ctb(newCTB, x86encrypted_ctLayer, layer_len_addrs[layer_no - (int)1]);
 
 
 
 
-       
-
-        
-        
+     
 
 #if (GENERATE_LOADS_OF_BMPS) 
         filesystem::path filepath = p / ("pt_lay" + to_string(layer_no) + ".bmp");
@@ -481,7 +484,8 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
 
 
 
-ofstream newCTB_fstream (CTB refCTB, filesystem::path save_path) {
+ofstream newCTB_fstream (CTB refCTB, filesystem::path save_path) 
+{
     // Create a new CTB file to store the encrypted version.
    auto header = refCTB.get_file_header();
 

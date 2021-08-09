@@ -77,16 +77,17 @@ class CTB
 
 
         // -- Getters
-        bool ready();
-        int get_width();
-        int get_height();
-        int get_no_layers();
+        bool    ready();
+        int     get_width();
+        int     get_height();
+        int     get_no_layers();
         uint32_t    get_key();
         cv::Mat     get_preview1();
         cv::Mat     get_preview2();
         ctbLayer    get_layer(int i);
-        std::vector<uint8_t>    get_file_header();
-        std::vector<ctbLayer>   get_all_layers();
+        ctbLayer    get_file_header();
+        std::vector<ctbLayer> get_all_layers();
+        std::vector<uint32_t>    get_layer_len_addrs();
 
         
         cv::Mat getPreview(std::vector<uint16_t> data, int width, int height);
@@ -94,17 +95,17 @@ class CTB
         cv::Mat getLayerImageRL7(std::vector<uint8_t> data, int width, int height);
 
         
-        std::vector<uint8_t> encode_rle7(std::vector<uint8_t>& unencoded);
-        std::vector<uint8_t> decode_rle7(std::vector<uint8_t>& encoded);
-        ctbLayer             encode_rle7(cv::Mat unencoded);
+        ctbLayer encode_rle7(std::vector<uint8_t>& unencoded);
+        ctbLayer decode_rle7(std::vector<uint8_t>& encoded);
+        ctbLayer encode_rle7(cv::Mat unencoded);
 
-        ctbLayer    encode_rle7_byte(std::vector<uint8_t>& unencoded);
-        ctbLayer    decode_rle7_byte(std::vector<uint8_t>& unencoded);
+        ctbLayer encode_rle7_byte(std::vector<uint8_t>& unencoded);
+        ctbLayer decode_rle7_byte(std::vector<uint8_t>& unencoded);
   
         inline uint32_t get_runlen(std::vector<uint8_t>::iterator& it);
         uint32_t    decode  (std::vector<uint8_t>::iterator& it, int numbytes);
         cv::Mat     enc2bmp (std::vector<uint8_t> enc, cv::Size area, int res);
-        std::vector<uint8_t> encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv);
+        ctbLayer    encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv);
         layer_bmp   encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int resolution);
         inline void push_encoded(std::vector<uint8_t>& encoded, std::bitset<8>::reference& c, uint32_t runlen, std::bitset<2>& ref);
 
@@ -112,8 +113,8 @@ class CTB
         void        encrypt_ctb_file(uint32_t key, std::wstring output);
         
 
-        std::ofstream    create_ctb(const std::vector<uint8_t>& header, std::string ctbfname);
-        void        add_layer_to_ctb(std::ofstream& ctbstrm, const std::vector<uint8_t>& layer_data, const std::uint32_t len_addr);
+        std::ofstream   create_ctb(const std::vector<uint8_t>& header, std::string ctbfname);
+        void            add_layer_to_ctb(std::ofstream& ctbstrm, const std::vector<uint8_t>& layer_data, const std::uint32_t len_addr);
         
     private:
 
