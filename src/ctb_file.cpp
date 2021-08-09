@@ -798,6 +798,126 @@ ctbLayer CTB::encode_rle7(cv::Mat bitmap)
 }
 
 
+vector<uint8_t> CTB::encode_rle7_byte(vector<uint8_t>& unencoded)
+{
+    vector<uint8_t> encoded;
+    auto it = unencoded.begin();
+
+    uint8_t curr = *it;
+
+    uint32_t runlen = 1;
+
+
+    while (++it != unencoded.end())
+    {
+        if (*it == curr) runlen++;
+        else
+        {
+            if (runlen == 1)
+            {
+                encoded.push_back(curr);
+            }
+            else
+            {
+                curr |= 1 << 7; // -- Set the 7th bit to indicate there is a run
+
+                encoded.push_back(curr);
+
+                if (runlen < 128)
+                {
+                    encoded.push_back(static_cast<uint8_t>(runlen));
+                }
+
+                else if (runlen < 268435456) // 2 ^ 28 (max acceptable runlen)
+                {
+                    int n;
+                    if (runlen < 16384) n = 2;          // 2 ^ 14
+                    else if (runlen < 2097152) n = 3;   // 2 ^ 21
+                    else n = 4;                         // 2 ^ 28
+
+
+                    vector<uint8_t> a;
+
+                    // -- Create bytes (uint8_t) from runlen
+                    for (int j = n - 1; j >= 0; j--)
+                    {
+                        a.push_back(static_cast<uint8_t>(runlen >> (j * 8)));
+                    }
+
+                    // -- Set bit 7 - i
+                    for (int k = 0; k < (n - 1); k++)
+                    {
+                        a[0] |= (1 << (7 - k));
+                    }
+
+                    // -- Push encoded bytes
+                    for (int l = 0; l < n; l++)
+                    {
+                        encoded.push_back(a[l]);
+                    }
+
+                }
+                else
+                {
+                    std::cout << "Invalid Run Length: " << runlen << std::endl;
+                }
+
+                runlen = 1;
+                curr = *it;
+            }
+        }
+    }
+
+
+    // -- Push final encoded data
+    curr |= 1 << 7; // -- Set the 7th bit to indicate there is a run
+
+    encoded.push_back(curr);
+
+    if (runlen < 128)
+    {
+        encoded.push_back(static_cast<uint8_t>(runlen));
+    }
+
+    else if (runlen < 268435456) // 2 ^ 28 (max acceptable runlen)
+    {
+        int n;
+        if (runlen < 16384) n = 2;          // 2 ^ 14
+        else if (runlen < 2097152) n = 3;   // 2 ^ 21
+        else n = 4;                         // 2 ^ 28
+
+
+        vector<uint8_t> a;
+
+        // -- Create bytes (uint8_t) from runlen
+        for (int j = n - 1; j >= 0; j--)
+        {
+            a.push_back(static_cast<uint8_t>(runlen >> (j * 8)));
+        }
+
+        // -- Set bit 7 - i
+        for (int k = 0; k < (n - 1); k++)
+        {
+            a[0] |= (1 << (7 - k));
+        }
+
+        // -- Push encoded bytes
+        for (int l = 0; l < n; l++)
+        {
+            encoded.push_back(a[l]);
+        }
+
+    }
+    else
+    {
+        std::cout << "Invalid Run Length: " << runlen << std::endl;
+    }
+
+    return encoded;
+}
+
+
+
 // RLE7 Encoding scheme -- optimized for memory
 vector<uint8_t> CTB::encode_rle7(vector<uint8_t>& unencoded)
 {
@@ -867,6 +987,40 @@ inline uint32_t CTB::get_runlen(vector<uint8_t>::iterator& it)
 
     return run_length;
 }
+
+
+vector<uint8_t> CTB::decode_rle7_byte(vector<uint8_t>& encoded)
+{
+    vector<uint8_t> decoded;
+
+    for (auto it = encoded.begin(); it != encoded.end(); ++it)
+    {
+        uint8_t run;
+        uint8_t dat = *it;
+        uint32_t run_length;
+
+        run = dat & 0x80;
+        uint8_t pixel = (dat & ~(1 << 7)); // -- Clear the last 7th bit
+
+        if (run)
+        {
+            run_length = get_runlen(it);
+            for (int i = 0; i < run_length; i++)
+            {
+                decoded.push_back(pixel);
+            }
+
+        }
+        else
+        {
+            decoded.push_back(pixel);
+        }
+    }
+
+    return decoded;
+ 
+}
+
 
 
 // - RLE7 Decompressing/Decoding -- implementation for memory optimization

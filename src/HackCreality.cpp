@@ -191,6 +191,31 @@ void messageParser(int* option)
             generateDecryptorImages(myCTB,  encProp, in_ctb);
             break;
         }
+        
+        case 5:
+        {
+            *option = 0;
+            wstring file_name;
+            if (openFileDialog(&file_name))
+            {
+                in_ctb.assign(file_name);
+                myCTB.read_CTB(in_ctb);
+
+                auto x = myCTB.get_layer(0);
+                print_layer_hex(x);
+
+                auto y = myCTB.decode_rle7_byte(x);
+
+                //print_layer_hex(y);
+
+                auto z = myCTB.encode_rle7_byte(y);
+
+                print_layer_hex(z);
+
+            }
+            break;
+
+        }
         case 7: 
         {
             *option = 0;
