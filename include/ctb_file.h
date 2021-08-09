@@ -49,11 +49,8 @@ constexpr int BITMAP_HEADER_SIZE_DEPTH_8_1 = 62;
 constexpr int BITMAP_HEADER_SIZE_DEPTH_24 = 54;
 
 #include <opencv2/opencv.hpp>
-//#include <opencv2/imgproc/imgproc.hpp>
 
 typedef  std::vector<uint8_t> ctbLayer;
-
-//using namespace std; Don't make using statements on header files or you can end up mixing variable names that are definined within the namespaces and everything becomes a mess
 
 
 std::string wstr2str(const std::wstring& wstr);
@@ -72,8 +69,8 @@ class CTB
     public:
         // -- Constructors
         CTB();
-        CTB(wstring fname);
-        void read_CTB(wstring fname);
+        CTB(std::wstring fname);
+        void read_CTB(std::wstring fname);
 
 
         // -- Getters
@@ -81,12 +78,12 @@ class CTB
         int get_width();
         int get_height();
         int get_no_layers();
-        uint32_t get_key();
-        cv::Mat get_preview1();
-        cv::Mat get_preview2();
-        vector<uint8_t> get_layer(int i);
-        vector<uint8_t> get_file_header();
-        vector<vector<uint8_t>> get_all_layers();
+        uint32_t    get_key();
+        cv::Mat     get_preview1();
+        cv::Mat     get_preview2();
+        ctbLayer    get_layer(int i);
+        std::vector<uint8_t>    get_file_header();
+        std::vector<ctbLayer>   get_all_layers();
 
         
         cv::Mat getPreview(std::vector<uint16_t> data, int width, int height);
@@ -94,20 +91,22 @@ class CTB
         cv::Mat getLayerImageRL7(std::vector<uint8_t> data, int width, int height);
 
         
-        vector<uint8_t> encode_rle7(vector<uint8_t>& unencoded);
-        vector<uint8_t> decode_rle7(vector<uint8_t>& encoded);
-        inline uint32_t get_runlen(vector<uint8_t>::iterator& it);
-        uint32_t decode(std::vector<uint8_t>::iterator& it, int numbytes);
-        cv::Mat enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res);
+        std::vector<uint8_t> encode_rle7(std::vector<uint8_t>& unencoded);
+        std::vector<uint8_t> decode_rle7(std::vector<uint8_t>& encoded);
+        ctbLayer             encode_rle7(cv::Mat unencoded);
+
+        inline uint32_t get_runlen(std::vector<uint8_t>::iterator& it);
+        uint32_t    decode(std::vector<uint8_t>::iterator& it, int numbytes);
+        cv::Mat     enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res);
         std::vector<uint8_t> encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv);
-        layer_bmp encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int resolution);
-        inline void push_encoded(vector<uint8_t>& encoded, bitset<8>::reference& c, uint32_t runlen, bitset<2>& ref);
+        layer_bmp   encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int resolution);
+        inline void push_encoded(std::vector<uint8_t>& encoded, std::bitset<8>::reference& c, uint32_t runlen, std::bitset<2>& ref);
 
-        void decrypt_ctb_file(wstring output);
-        void encrypt_ctb_file(uint32_t key, wstring output);
-        ofstream create_ctb(const vector<uint8_t>& header, string ctbfname);
-        void add_layer_to_ctb(ofstream& ctbstrm, const std::vector<uint8_t>& layer_data, const std::uint32_t len_addr);
-
+        void        decrypt_ctb_file(std::wstring output);
+        void        encrypt_ctb_file(uint32_t key, std::wstring output);
+        std::ofstream    create_ctb(const std::vector<uint8_t>& header, std::string ctbfname);
+        void        add_layer_to_ctb(std::ofstream& ctbstrm, const std::vector<uint8_t>& layer_data, const std::uint32_t len_addr);
+        
     private:
 
         bool m_read;
@@ -115,7 +114,7 @@ class CTB
         int m_layer_width;
         int m_layer_height;
 
-        string m_ctb_fname;
+        std::string m_ctb_fname;
         uint32_t m_encrypt_key;
 
         layer_bmp m_layer_bmps;
@@ -123,7 +122,7 @@ class CTB
         cv::Mat m_preview1;
         cv::Mat m_preview2;
 
-        vector<uint8_t>             m_header;
+        std::vector<uint8_t>        m_header;
         std::vector<ctbLayer>       m_layer_data;
         std::vector<std::uint32_t>  m_layer_i_len;
         std::vector<std::uint32_t>  m_layer_i_addr;
