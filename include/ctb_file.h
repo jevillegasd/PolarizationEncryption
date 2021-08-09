@@ -55,6 +55,8 @@ using namespace std;
 
 
 std::string wstr2str(const std::wstring& wstr);
+void print_layer_hex(const vector<uint8_t>& layer_data);
+
 
 
 struct layer_bmp 
@@ -94,6 +96,10 @@ class CTB
         
         vector<uint8_t> encode_rle7(vector<uint8_t>& unencoded);
         vector<uint8_t> decode_rle7(vector<uint8_t>& encoded);
+
+        vector<uint8_t> encode_rle7_byte(vector<uint8_t>& unencoded);
+        vector<uint8_t> decode_rle7_byte(vector<uint8_t>& encoded);
+
         inline uint32_t get_runlen(vector<uint8_t>::iterator& it);
         uint32_t decode(std::vector<uint8_t>::iterator& it, int numbytes);
         cv::Mat enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res);
