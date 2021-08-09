@@ -5,7 +5,6 @@
 
 #define _WINNT_WIN32 0600
 
-//#include "stdafx.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui_c.h> 
 #include <windows.h>
@@ -20,7 +19,8 @@ const std::string STRMAINMENU("\nHack Creality main menu. Select an option. "
     "\n\t1 - Load a ctb file."          "\n\t2 - Decrypt ctb file."
     "\n\t3 - Encrypt ctb file."         "\n\t4 - Generate decryptor images."
     "\n\t5 - Setup printing sequence."  "\n\t6 - Run printer decryptor."
-    "\n\t7 - Display test image."       "\n\tQ - Exit.\n>> ");
+    "\n\t7 - Display test image."       "\n\t8 - Test RLE enconding."
+    "\n\tQ - Exit.\n>> ");
 
 struct encryption_prop 
 {
@@ -29,8 +29,8 @@ struct encryption_prop
                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF };
     uint64_t nonce = 0;
     int extract_dim = 100;  // Dimension of the square area encrypted
-    int i_inilayer = 0, i_endLayer = 30; // First and last layers to encrypt
-    int res = 20;           // 2D resolution of the encryption in pixels
+    int i_inilayer = 0, i_endLayer = 10; // First and last layers to encrypt
+    int res = 10;           // 2D resolution of the encryption in pixels
     cv::Rect area;
 };
 
@@ -58,7 +58,7 @@ struct screens
     }
 };
 
-BOOL openFileDialog(std::wstring* file_name);
+int openFileDialog(std::wstring* file_name);
 cv::Mat rotateImage(cv::Mat image, double angle);
 
 std::string displayimage(cv::Mat image, std::string window_name);
@@ -67,8 +67,8 @@ std::string displayimage_fs(std::wstring file_name, std::string window_name);
 std::string displayimage_fs(std::wstring file_name, std::string window_name, int display_number);
 void plotandwait(cv::Mat image);
 
-int generateDecryptorImages(CTB& myCTB, encryption_prop prop, filesystem::path save_path);
-
+int generateDecryptorImages(CTB& myCTB, encryption_prop prop, std::filesystem::path save_path);
+std::ofstream newCTB_fstream(CTB refCTB, std::filesystem::path save_path);
 
 int messageListener(int* option);
 void messageParser(int* option);

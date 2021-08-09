@@ -4,6 +4,11 @@
 #include "../include/ctb_file.h"
 #include "../include/Hackcreality.h"
 
+#include <chrono>
+#include <thread>
+
+#define GENERATE_LOADS_OF_BMPS 0
+
 using namespace cv;
 using namespace std;
 
@@ -70,6 +75,9 @@ int messageListener(int* option)
     case '7':
         *option += 7;
         break;
+    case '8':
+        *option += 8;
+        break;
     case 'q'|'Q': {
         *option = 0;
         return 0;
@@ -100,7 +108,7 @@ void messageParser(int* option)
             if (openFileDialog(&file_name)) 
             {
                 in_ctb.assign(file_name);
-                myCTB.read_CTB(in_ctb);
+                myCTB = CTB(in_ctb);
 
                 if (myCTB.get_key() != 0x0000'0000)
                 {
@@ -231,7 +239,7 @@ void messageParser(int* option)
 
 
 // File Open dialog window
-BOOL openFileDialog(wstring* file_name)
+int openFileDialog(wstring* file_name)
 {
     CoInitialize(NULL);
     IFileDialog *pfd = nullptr;     //File Dialog
@@ -282,12 +290,6 @@ cv::Mat rotateImage(Mat image, double angle) {
     warpAffine(image, res, rot, bounding_box.size());
     return res;
 }
-
-
-
-//Covert a wide string to string
-
-
 
 
 //Display an image in the main screen not full_screen
@@ -387,19 +389,27 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
 
     auto all_layers = myCtb.get_all_layers();
     int no_layers   = myCtb.get_no_layers();
-    auto it_end     = all_layers.end();
-    auto it_begin   = all_layers.begin();
+    vector<ctbLayer>::iterator it_end     = all_layers.end();
+    vector<ctbLayer>::iterator it_begin   = all_layers.begin();
 
-    //Only decrypt the layers between iniLayer and endLayer
+    //Only decrypt the layers between i_iniLayer and i_endLayer
     vector<ctbLayer>::iterator it_iniLayer = it_begin + \
                                              min(i_iniLayer, no_layers);
 
     vector<ctbLayer>::iterator it_endLayer = it_iniLayer + \
-                                             min( (i_iniLayer + i_endLayer), no_layers);
+                                             min(i_endLayer, no_layers);
 
-    cv::Rect area((im_width - extract_dim) / 2, (im_heigth - extract_dim) / 2, \
+    //This is (rows, cols) so (y,x) in an image
+    cv::Rect area((im_heigth - extract_dim) / 2, (im_width - extract_dim) / 2, \
         extract_dim, extract_dim);
     encProp.area = area;
+
+   
+    ofstream newCTB = newCTB_fstream(myCTB, save_path);
+
+    string window_name = "draw";
+    
+    cv::startWindowThread();
 
     int layer_no = 1;
     for (vector<ctbLayer>::iterator it = it_begin; it != it_end; it++) 
@@ -410,20 +420,39 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
         Mat imlayer = myCtb.getLayerImageRL7(layer, im_width, im_heigth);
         layer_bmp my_layer_bmp;
 
-        int ctr = nonce + layer_no / res;
+        //int ctr = nonce + layer_no / res; // A different encryption every res layers
+        int ctr = nonce + layer_no;
 
+        //Only modify the layers between iniLayer and endLayer
         BOOL encrypt = (it >= it_iniLayer && it < it_endLayer);
-        if (encrypt)
+        if (encrypt) {
             my_layer_bmp = myCtb.encrypt_area(imlayer, area, key, ctr, res);
+            layer = myCtb.encode_rle7(my_layer_bmp.layer_ct);
+        }
         else 
         {
-            my_layer_bmp.layer_ct = imlayer;
-            my_layer_bmp.layer_pt = imlayer;
-            my_layer_bmp.layer_enc = \
-                cv::Mat(imlayer.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
+            my_layer_bmp.layer_ct =     imlayer;
+            my_layer_bmp.layer_pt =     imlayer;
+            my_layer_bmp.layer_enc =    cv::Mat(imlayer.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
         }
 
-        //string file = string(filepath.begin(), filepath.end()) + "pt_lay" + to_string(layer_no)+".bmp";
+        //Generate the RLE7 descruption of the generate image
+        displayimage(my_layer_bmp.layer_ct, window_name);
+        waitKey(10);
+        
+       //My guess is that the length that I am using here doesnt really work.
+        vector<uint8_t> x86encrypted_ctLayer = myCtb.encrypt_decrypt_86(layer, layer_no - 1);
+        myCtb.add_layer_to_ctb(newCTB, x86encrypted_ctLayer, x86encrypted_ctLayer.size());
+
+
+
+
+       
+
+        
+        
+
+#if (GENERATE_LOADS_OF_BMPS) 
         filesystem::path filepath = p / ("pt_lay" + to_string(layer_no) + ".bmp");
         cv::imwrite(filepath.u8string(), my_layer_bmp.layer_pt);
 
@@ -432,13 +461,40 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
 
         filepath = p / ("enc_lay" + to_string(layer_no) + ".bmp");
         cv::imwrite(filepath.u8string(), my_layer_bmp.layer_enc);
+        
+#endif      
 
 
-        if (VERBOSE) std::cout << "Writing layer " << layer_no << std::endl;
+
+        if (VERBOSE) 
+            std::cout << "Writing layer " << layer_no << std::endl;
         layer_no++;
 
     }
-    //destroyWindow("draw");
-    cout << "All transformed bmp files were generated. Generating new ctb --- Not really..";  
+    
+    try {
+            destroyWindow(window_name);
+    }
+    catch (Exception e) {}
     return 0;
+}
+
+
+
+ofstream newCTB_fstream (CTB refCTB, filesystem::path save_path) {
+    // Create a new CTB file to store the encrypted version.
+   auto header = refCTB.get_file_header();
+
+   //Set the new header ctbencryption as none
+   for (int i = 100; i < 104; i++)
+        header[i] = 0x00;
+
+   //Instead oif this lets make a Savefile dialog
+   filesystem::path filepath = save_path.remove_filename()/ "processedCTB.ctb";
+   string outfilename = filepath.string();
+   ofstream ctbfilestrm = refCTB.create_ctb(header, outfilename);
+
+   header.clear();
+   header.shrink_to_fit();
+   return ctbfilestrm;
 }
