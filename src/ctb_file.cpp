@@ -33,22 +33,22 @@ std::string wstr2str(const std::wstring& wstr)
 
 CTB::CTB()
 {
-    m_read = false;
+    this->m_read = false;
 
-    m_no_layers = 0;
-    m_layer_width = 0;
-    m_layer_height = 0;
+    this->m_no_layers = 0;
+    this->m_layer_width = 0;
+    this->m_layer_height = 0;
     
-    m_ctb_fname = "";
+    this->m_ctb_fname = "";
 }
 
 CTB::CTB(wstring fname)
 {
-    m_no_layers = 0;
-    m_layer_width = 0;
-    m_layer_height = 0;
+    this->m_no_layers = 0;
+    this->m_layer_width = 0;
+    this->m_layer_height = 0;
 
-    read_CTB(fname);
+    this->read_CTB(fname);
 }
 
 
@@ -337,8 +337,8 @@ void CTB::read_CTB(wstring fname)
 
     fclose(stream);
 
-    this->m_preview1 = getPreview(preview1, (int)prev1_header[0], (int)prev1_header[1]);
-    this->m_preview2 = getPreview(preview2, (int)prev2_header[0], (int)prev2_header[1]);
+    this->m_preview1 = this->getPreview(preview1, (int)prev1_header[0], (int)prev1_header[1]);
+    this->m_preview2 = this->getPreview(preview2, (int)prev2_header[0], (int)prev2_header[1]);
 
     std::cout << "Finished getting preview images ..." << std::endl;
 
@@ -362,10 +362,10 @@ vector<vector<uint8_t>> CTB::get_all_layers()
     }
     else
     {
-        ifstream ctbfstream(m_ctb_fname, std::ifstream::binary);
+        ifstream ctbfstream(this->m_ctb_fname, std::ifstream::binary);
         if (!ctbfstream)
         {
-            std::cout << "Cannot open " << m_ctb_fname << std::endl;
+            std::cout << "Cannot open " << this->m_ctb_fname << std::endl;
             std::cout << "Failed to get all layers" << std::endl;
         }
 
@@ -996,7 +996,7 @@ void CTB::decrypt_ctb_file(wstring output)
         std::cout <<".";
     }
 
-    std::cout << "\nFinished decrypting file " << m_ctb_fname << std::endl << std::endl;
+    std::cout << "\nFinished decrypting file " << this->m_ctb_fname << std::endl << std::endl;
     std::cout << "Generated decrypted CTB file " << outfilename << std::endl;
 
     ctbfilestrm.close();
@@ -1008,8 +1008,8 @@ void CTB::encrypt_ctb_file(uint32_t key, wstring output)
 {
     if (m_encrypt_key != 0x0000'0000)
     {
-        std::cout << "CTB file " << m_ctb_fname << " is already encrypted. Returning ..." << std::endl;
-        std::cout << "Key is: " << m_encrypt_key << std::endl;
+        std::cout << "CTB file " << this->m_ctb_fname << " is already encrypted. Returning ..." << std::endl;
+        std::cout << "Key is: " << this->m_encrypt_key << std::endl;
         std::cout << "Alternatively decrypt and then re-encrypt with another key" << std::endl;
         return;
     }
@@ -1017,7 +1017,7 @@ void CTB::encrypt_ctb_file(uint32_t key, wstring output)
     m_encrypt_key = key;
 
     // -- Get the header (excluding layer data) from the ctb file
-    auto header = get_file_header();
+    auto header = this->get_file_header();
 
     // -- Set the key
     for (int i = 100; i < 104; i++)

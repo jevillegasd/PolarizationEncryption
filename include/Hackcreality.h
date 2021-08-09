@@ -67,7 +67,7 @@ std::string displayimage_fs(std::wstring file_name, std::string window_name);
 std::string displayimage_fs(std::wstring file_name, std::string window_name, int display_number);
 void plotandwait(cv::Mat image);
 
-int generateDecryptorImages(CTB& myCTB, encryption_prop prop, filesystem::path save_path);
+int generateDecryptorImages(CTB& myCTB, encryption_prop prop, std::filesystem::path save_path);
 
 
 int messageListener(int* option);

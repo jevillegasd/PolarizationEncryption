@@ -103,7 +103,7 @@ void messageParser(int* option)
             if (openFileDialog(&file_name)) 
             {
                 in_ctb.assign(file_name);
-                myCTB.read_CTB(in_ctb);
+                myCTB = CTB(in_ctb);
 
                 if (myCTB.get_key() != 0x0000'0000)
                 {
@@ -359,8 +359,8 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
 
     auto all_layers = myCtb.get_all_layers();
     int no_layers   = myCtb.get_no_layers();
-    auto it_end     = all_layers.end();
-    auto it_begin   = all_layers.begin();
+    vector<ctbLayer>::iterator it_end     = all_layers.end();
+    vector<ctbLayer>::iterator it_begin   = all_layers.begin();
 
     //Only decrypt the layers between iniLayer and endLayer
     vector<ctbLayer>::iterator it_iniLayer = it_begin + \
