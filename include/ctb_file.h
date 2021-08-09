@@ -93,6 +93,8 @@ class CTB
         
         std::vector<uint8_t> encode_rle7(std::vector<uint8_t>& unencoded);
         std::vector<uint8_t> decode_rle7(std::vector<uint8_t>& encoded);
+        ctbLayer             encode_rle7(cv::Mat unencoded);
+
         inline uint32_t get_runlen(std::vector<uint8_t>::iterator& it);
         uint32_t    decode(std::vector<uint8_t>::iterator& it, int numbytes);
         cv::Mat     enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res);
@@ -104,7 +106,7 @@ class CTB
         void        encrypt_ctb_file(uint32_t key, std::wstring output);
         std::ofstream    create_ctb(const std::vector<uint8_t>& header, std::string ctbfname);
         void        add_layer_to_ctb(std::ofstream& ctbstrm, const std::vector<uint8_t>& layer_data, const std::uint32_t len_addr);
-
+        
     private:
 
         bool m_read;

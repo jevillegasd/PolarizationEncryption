@@ -451,7 +451,7 @@ uint32_t CTB::get_key()
     {
         std::cout << "No file loaded yet. Returning empty uint32_t ..." << std::endl;
     }
-    return m_encrypt_key;
+    return this->m_encrypt_key;
 }
 
 
@@ -461,7 +461,7 @@ cv::Mat CTB::get_preview1()
     {
         std::cout << "No file loaded yet. Returning empty cv::Mat ..." << std::endl;
     }
-    return m_preview1;
+    return this->m_preview1;
 }
 
 
@@ -471,7 +471,7 @@ cv::Mat CTB::get_preview2()
     {
         std::cout << "No file loaded yet. Returning empty cv::Mat ..." << std::endl;
     }
-    return m_preview2;
+    return this->m_preview2;
 }
 
 
@@ -546,7 +546,7 @@ cv::Mat CTB::getLayerImageRL1(std::vector<uint8_t> data, int width, int height)
 //Generates an image following the layer specification with antialiasing
 cv::Mat CTB::getLayerImageRL7(std::vector<uint8_t> data, int width, int height) 
 {
-    cv::Mat image(height, width, CV_8UC3);
+    cv::Mat image(width,height, CV_8UC3);
     int x = 0, y = 0;
 
    
@@ -587,7 +587,7 @@ cv::Mat CTB::getLayerImageRL7(std::vector<uint8_t> data, int width, int height)
                     return image;
                 }
                     
-                image.at<cv::Vec3b>(cv::Point(x, y)) = color;
+                image.at<cv::Vec3b>(cv::Point(y,x)) = color;
                 x++;
                 if (x >= width) {
                     y++; x = 0;
@@ -595,7 +595,7 @@ cv::Mat CTB::getLayerImageRL7(std::vector<uint8_t> data, int width, int height)
             }
         }
         else {
-            image.at<cv::Vec3b>(cv::Point(x, y)) = color;
+            image.at<cv::Vec3b>(cv::Point(y, x)) = color;
             x++;
             if (x >= width) {
                 y++; x = 0;
@@ -657,7 +657,7 @@ layer_bmp CTB::encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint6
 }
 
 
-
+//Maps a every bit of the input to a binary image of size area*res
 cv::Mat CTB::enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res) 
 {
     cv::Mat enci(area.width, area.height, CV_8UC3);
@@ -694,7 +694,7 @@ std::vector<uint8_t> CTB::encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t
     std::vector<uint8_t> result;
 
     // Multiplication and Addition is in modulo 2^32. operations * and + are automatically modulo 2^32 for uint32_t.
-    uint32_t c = m_encrypt_key * 0x2D83'CDAC + 0xD8A8'3423;
+    uint32_t c = this->m_encrypt_key * 0x2D83'CDAC + 0xD8A8'3423;
 
     uint32_t X = (iv * 0x1E15'30CD + 0xEC3D'47CD) * c;
 
@@ -770,6 +770,32 @@ inline void CTB::push_encoded(vector<uint8_t>& encoded, bitset<8>::reference& c,
     }
 }
 
+
+// RLE7 Encoding from Image Mat structrure
+ctbLayer CTB::encode_rle7(cv::Mat bitmap)
+{
+    
+
+    vector < uint8_t> onebyte;
+
+    
+    cv::Mat greyMat;
+    if (bitmap.channels() > 1)
+        cv::cvtColor(bitmap, greyMat, cv::COLOR_BGR2GRAY);
+    else
+        bitmap.copyTo(greyMat);
+
+    for (int x = 0; x < greyMat.cols; x++) {
+        for (int y = 0; y < greyMat.rows; y++) {
+            uint8_t pixel = (uint8_t) greyMat.at<uchar>(y, x)>>1;
+            onebyte.push_back(pixel);
+        }
+    }
+
+    vector<uint8_t> encoded = onebyte;
+    // call vector<uint8_t> encoded = this->encode_rle7(vector<uint8_t>& onebyte)
+    return encoded;
+}
 
 
 // RLE7 Encoding scheme -- optimized for memory
@@ -1038,7 +1064,7 @@ void CTB::encrypt_ctb_file(uint32_t key, wstring output)
     for (int j = 0; j < this->m_no_layers; j++)
     {
         encrypted = encrypt_decrypt_86(get_layer(j), j);
-        add_layer_to_ctb(ctbfilestrm, encrypted, m_layer_len_addr[j]);
+        add_layer_to_ctb(ctbfilestrm, encrypted, this->m_layer_len_addr[j]);
         std::cout << ".";
     }
 

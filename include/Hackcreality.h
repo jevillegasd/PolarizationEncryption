@@ -29,8 +29,8 @@ struct encryption_prop
                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF };
     uint64_t nonce = 0;
     int extract_dim = 100;  // Dimension of the square area encrypted
-    int i_inilayer = 0, i_endLayer = 30; // First and last layers to encrypt
-    int res = 20;           // 2D resolution of the encryption in pixels
+    int i_inilayer = 0, i_endLayer = 10; // First and last layers to encrypt
+    int res = 10;           // 2D resolution of the encryption in pixels
     cv::Rect area;
 };
 
@@ -68,7 +68,7 @@ std::string displayimage_fs(std::wstring file_name, std::string window_name, int
 void plotandwait(cv::Mat image);
 
 int generateDecryptorImages(CTB& myCTB, encryption_prop prop, std::filesystem::path save_path);
-
+std::ofstream newCTB_fstream(CTB refCTB, std::filesystem::path save_path);
 
 int messageListener(int* option);
 void messageParser(int* option);
