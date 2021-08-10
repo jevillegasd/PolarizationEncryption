@@ -393,33 +393,32 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
     
     cv::startWindowThread();
 
-    int layer_no = 1;
+    size_t layer_no = 1;
     for (vector<ctbLayer>::iterator it = it_begin; it != it_end; it++) 
     {
         ctbLayer layer = *it;
-
-        // Build bitmaps from the layer data and their encrypted versions
-        Mat imlayer = myCtb.getLayerImageRL7(layer, im_width, im_heigth);
-        layer_bmp my_layer_bmp;
-
+        
         //int ctr = nonce + layer_no / res; // A different encryption every res layers
-        int ctr = nonce + layer_no;
-
+        size_t ctr = nonce + layer_no;
         ctbLayer layer2file;
 
         //Only modify the layers between iniLayer and endLayer
         BOOL encrypt = (it >= it_iniLayer && it < it_endLayer);
         if (encrypt) 
         {
-            my_layer_bmp    = myCtb.encrypt_area(imlayer, area, key, ctr, res);
+            // Build bitmaps from the layer data and their encrypted versions
+            Mat imlayer = myCtb.getLayerImageRL7(layer, im_width, im_heigth);
+            layer_bmp my_layer_bmp = myCtb.encrypt_area(imlayer, area, key, ctr, res); 
+            displayimage(my_layer_bmp.layer_ct, window_name);
             layer2file      = myCtb.encode_rle7(my_layer_bmp.layer_ct);
+            waitKey(1000);
         }
         else 
         {
-            my_layer_bmp.layer_ct   = imlayer;
-            my_layer_bmp.layer_pt   = imlayer;
-            my_layer_bmp.layer_enc  = cv::Mat(imlayer.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
-            layer2file              = myCtb.encode_rle7(my_layer_bmp.layer_ct);
+            //my_layer_bmp.layer_ct   = imlayer;
+            //my_layer_bmp.layer_pt   = imlayer;
+            //my_layer_bmp.layer_enc  = cv::Mat(imlayer.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
+            layer2file = layer;//myCtb.encode_rle7(my_layer_bmp.layer_ct);
         }
 
         //**********************************************************
@@ -447,8 +446,9 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
 
 
        // Encrypt layer and then write the layer to the ctb file;
-        vector<uint8_t> x86encrypted_ctLayer = myCtb.encrypt_decrypt_86(layer2file, layer_no - 1);
-        myCtb.add_layer_to_ctb(newCTB, x86encrypted_ctLayer, layer_len_addrs[layer_no - (int)1]);
+        //vector<uint8_t> x86encrypted_ctLayer = myCtb.encrypt_decrypt_86(layer2file, layer_no - 1);
+        
+        myCtb.add_layer_to_ctb(newCTB, layer2file, layer_len_addrs[layer_no - 1]);
 
 
 
@@ -467,7 +467,9 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
         
 #endif      
 
-
+        if (waitKey(20) == 27) 
+            break; //Breeak the loop on a ESC character
+        progressBar(layer_no, no_layers);
 
         if (VERBOSE) 
             std::cout << "Writing layer " << layer_no << std::endl;

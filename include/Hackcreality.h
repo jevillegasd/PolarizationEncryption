@@ -72,3 +72,15 @@ std::ofstream newCTB_fstream(CTB refCTB, std::filesystem::path save_path);
 
 int messageListener(int* option);
 void messageParser(int* option);
+
+void progressBar(int progress, int max){
+        std::cout.flush();
+        int _progress = (progress * 40 / max);
+        std::cout << "\rProcessing layer " <<progress<<". Progress: [";
+        for (int i = 0; i < _progress; i++)
+            std::cout << "#";
+
+        for (int i = 0; i < 40-_progress; i++)
+            std::cout << " ";
+        std::cout << "] " << (progress*100/max) << "%";
+}
