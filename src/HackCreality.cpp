@@ -411,7 +411,7 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
             layer_bmp my_layer_bmp = myCtb.encrypt_area(imlayer, area, key, ctr, res); 
             displayimage(my_layer_bmp.layer_ct, window_name);
             layer2file      = myCtb.encode_rle7(my_layer_bmp.layer_ct);
-            waitKey(1000);
+            waitKey(100);
         }
         else 
         {
@@ -470,11 +470,8 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
         if (waitKey(20) == 27) 
             break; //Breeak the loop on a ESC character
         progressBar(layer_no, no_layers);
-
-        if (VERBOSE) 
-            std::cout << "Writing layer " << layer_no << std::endl;
+        
         layer_no++;
-
     }
     
     try {

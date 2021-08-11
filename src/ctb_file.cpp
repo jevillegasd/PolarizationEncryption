@@ -793,9 +793,7 @@ inline void CTB::push_encoded(vector<uint8_t>& encoded, bitset<8>::reference& c,
 // RLE7 Encoding from Image Mat structrure
 ctbLayer CTB::encode_rle7(cv::Mat bitmap)
 {
-   
-    vector < uint8_t> onebyte;
-
+    vector<uint8_t> onebyte;
     
     cv::Mat greyMat;
     if (bitmap.channels() > 1)
@@ -803,134 +801,86 @@ ctbLayer CTB::encode_rle7(cv::Mat bitmap)
     else
         bitmap.copyTo(greyMat);
 
-    for (int x = 0; x < greyMat.cols; x++) 
+    for (long x = 0; x < greyMat.cols; x++) 
     {
-        for (int y = 0; y < greyMat.rows; y++) 
+        for (long y = 0; y < greyMat.rows; y++)
         {
-            uint8_t pixel = (uint8_t) greyMat.at<uchar>(y, x)>>1;
+            uint8_t pixel = greyMat.at<uint8_t>(y, x) >> 1;
             onebyte.push_back(pixel);
         }
     }
 
-    vector<uint8_t> encoded = this->encode_rle7_byte(onebyte);
-
+    ctbLayer encoded = this->encode_rle7_byte(onebyte);
     return encoded;
 }
 
 
-
+// RLE7 Image encoding from vector of uint8 (with grayscale pixel data)
 ctbLayer CTB::encode_rle7_byte(vector<uint8_t>& unencoded)
 {
-    vector<uint8_t> encoded;
-    auto it = unencoded.begin();
+    vector<uint8_t>              encoded;
+    vector<uint8_t>::iterator    it = unencoded.begin();
 
     uint8_t curr = *it;
-
-    uint32_t runlen = 1;
-
+    size_t runlen = 1;
 
     while (++it != unencoded.end())
     {
-        if (*it == curr) runlen++;
+        if (*it == curr) 
+            runlen++;
         else
         {
             if (runlen == 1)
-            {
                 encoded.push_back(curr);
-            }
             else
-            {
-                curr |= 1 << 7; // -- Set the 7th bit to indicate there is a run
-
-                encoded.push_back(curr);
-
+            {            
+                encoded.push_back(curr|0x80);       // Set the 7th bit to indicate there is a run           
                 if (runlen < 128)
-                {
                     encoded.push_back(static_cast<uint8_t>(runlen));
-                }
-
-                else if (runlen < 268435456) // 2 ^ 28 (max acceptable runlen)
+                else if (runlen < 0x10000000)       // 2 ^ 28 (max acceptable runlen)
                 {
-                    int n;
-                    if (runlen < 16384) n = 2;          // 2 ^ 14
-                    else if (runlen < 2097152) n = 3;   // 2 ^ 21
-                    else n = 4;                         // 2 ^ 28
+                    //uint8_t n;
+                    //if (runlen < 0x4000) n = 2;          // 2 ^ 14
+                    //else if (runlen < 0x200000) n = 3;   // 2 ^ 21
+                    //else n = 4;                          // 2 ^ 28
+                    uint8_t n = (32 - _lzcnt_u32(runlen)) / CHAR_BIT + 1;
 
-
-                    vector<uint8_t> a;
-
-                    // -- Create bytes (uint8_t) from runlen
-                    for (int j = n - 1; j >= 0; j--)
-                    {
-                        a.push_back(static_cast<uint8_t>(runlen >> (j * 8)));
-                    }
-
-                    // -- Set bit 7 - i
-                    for (int k = 0; k < (n - 1); k++)
-                    {
-                        a[0] |= (1 << (7 - k));
-                    }
-
-                    // -- Push encoded bytes
-                    for (int l = 0; l < n; l++)
-                    {
-                        encoded.push_back(a[l]);
-                    }
-
+                    encoded.push_back(     (runlen>> ((n-1)* CHAR_BIT))     |     ((uint8_t)(0xE00 >> n) & 0xF0)    );
+                    for (uint8_t j = n-1; j>0; j--)
+                        encoded.push_back( runlen >> ((j- 1) * CHAR_BIT) );
                 }
                 else
                 {
+                    //Shouldnt we here split the run into several consecutive runs with the same data?
                     std::cout << "Invalid Run Length: " << runlen << std::endl;
                 }
-
                 runlen = 1;
-                curr = *it;
             }
+            curr = *it; // Update the current pixel color for the next iteration.
         }
     }
 
 
     // -- Push final encoded data
-    curr |= 1 << 7; // -- Set the 7th bit to indicate there is a run
-
-    encoded.push_back(curr);
+    encoded.push_back(curr | 0x80);          // Set the 7th bit to indicate there is a run
 
     if (runlen < 128)
-    {
         encoded.push_back(static_cast<uint8_t>(runlen));
-    }
-
-    else if (runlen < 268435456) // 2 ^ 28 (max acceptable runlen)
+    else if (runlen < 0x10000000)            // 2 ^ 28 (max acceptable runlen)
     {
-        int n;
-        if (runlen < 16384) n = 2;          // 2 ^ 14
-        else if (runlen < 2097152) n = 3;   // 2 ^ 21
-        else n = 4;                         // 2 ^ 28
+        //uint8_t n;
+        //if (runlen < 0x4000) n = 2;          // 2 ^ 14
+        //else if (runlen < 0x200000) n = 3;   // 2 ^ 21
+        //else n = 4;                          // 2 ^ 28
 
-
-        vector<uint8_t> a;
-
-        // -- Create bytes (uint8_t) from runlen
-        for (int j = n - 1; j >= 0; j--)
-        {
-            a.push_back(static_cast<uint8_t>(runlen >> (j * 8)));
-        }
-
-        // -- Set bit 7 - i
-        for (int k = 0; k < (n - 1); k++)
-        {
-            a[0] |= (1 << (7 - k));
-        }
-
-        // -- Push encoded bytes
-        for (int l = 0; l < n; l++)
-        {
-            encoded.push_back(a[l]);
-        }
-
+        uint8_t n =  (32 - _lzcnt_u32(runlen))/ CHAR_BIT+1;
+        encoded.push_back((runlen >> ((n - 1) * CHAR_BIT)) | ((uint8_t)(0xE00 >> n) & 0xF0));
+        for (uint8_t j = n - 1; j > 0; j--)
+            encoded.push_back(runlen >> ((j - 1) * CHAR_BIT));
     }
     else
     {
+        //Shouldnt we here split the run into several consecutive runs with the same data?
         std::cout << "Invalid Run Length: " << runlen << std::endl;
     }
 
