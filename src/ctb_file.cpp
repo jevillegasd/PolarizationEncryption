@@ -72,7 +72,7 @@ void CTB::read_CTB(wstring fname)
     int err;
     size_t numread;
     uint32_t stream_i, indi;
-    uint32_t header[HEADERCNT];
+    //uint32_t header[HEADERCNT];
     uint32_t buffer[BUFFERSIZE];
 
 
@@ -86,20 +86,20 @@ void CTB::read_CTB(wstring fname)
     for (stream_i = 0; stream_i < HEADERSIZE; stream_i += HDATASIZE) 
     {
         numread = fread(buffer, HDATASIZE, 1, stream);
-        header[stream_i / HDATASIZE] = *buffer;
+        this->main_header[stream_i / HDATASIZE] = *buffer;
         if (VERBOSE) printf("\nGENERAL HEADER 0x%x \t %x", stream_i, *buffer);
     }
 
     // -- Get encrypton key
-    this->m_encrypt_key = header[25];
+    this->m_encrypt_key = this->main_header[25];
 
 
-    int layer_width = header[CTB_MHEADER_RESX];
-    int layer_heigth = header[CTB_MHEADER_RESY];
+    int layer_width = this->main_header[CTB_MHEADER_RESX];
+    int layer_heigth = this->main_header[CTB_MHEADER_RESY];
 
     // Read large preview image data
     uint32_t previewh_add, previewh_len;
-    previewh_add = header[15];
+    previewh_add = this->main_header[15];
     previewh_len = 8 * HDATASIZE;
 
     //First read the preview 1 header
@@ -150,7 +150,7 @@ void CTB::read_CTB(wstring fname)
 
     //Read the preview 2 parameters data
     uint32_t preview2h_add;
-    preview2h_add = header[18];
+    preview2h_add = this->main_header[18];
 
     //First read the preview 2 header
     uint32_t prev2_header[8];
@@ -197,8 +197,8 @@ void CTB::read_CTB(wstring fname)
 
     //Read the print parameters data
     uint32_t pparam_add, pparam_len;
-    pparam_add = header[CTB_HEADER_PNTADD];
-    pparam_len = header[CTB_HEADER_PNTLEN];
+    pparam_add = this->main_header[CTB_HEADER_PNTADD];
+    pparam_len = this->main_header[CTB_HEADER_PNTLEN];
 
     uint32_t* print_header = new uint32_t[pparam_len / HDATASIZE];
     while (stream_i < pparam_add + pparam_len) 
@@ -209,11 +209,16 @@ void CTB::read_CTB(wstring fname)
         if (VERBOSE) printf("\nPRINT HEADER 0x%x \t %x", stream_i, *buffer);
         stream_i += (HDATASIZE);
     }
+    
+    // Fill know parameters of ExtConfig
+    for (int i=0; i< PHEADERCNT; i++)
+        this -> print_header[i] = print_header[i];
+
 
     //Read the slice parameters data
     uint32_t sparam_add, sparam_len;
-    sparam_add = header[CTB_HEADER_SLCADD];
-    sparam_len = header[CTB_HEADER_SLCLEN];
+    sparam_add = this->main_header[CTB_HEADER_SLCADD];
+    sparam_len = this->main_header[CTB_HEADER_SLCLEN];
 
     uint32_t* slice_header = new uint32_t[sparam_len / HDATASIZE];
     while (stream_i < sparam_add + sparam_len) 
@@ -243,8 +248,8 @@ void CTB::read_CTB(wstring fname)
 
     //Read layer header data
     uint32_t layerh_add0, layerh_len, layerh_addi;
-    layerh_add0 = header[CTB_HEADER_LAYADD];
-    layerh_len = header[CTB_HEADER_LAYLEN];
+    layerh_add0 = this->main_header[CTB_HEADER_LAYADD];
+    layerh_len = this->main_header[CTB_HEADER_LAYLEN];
 
     std::vector<std::vector<uint32_t>> layer_headers;
     std::vector<std::vector<uint32_t>> layer_headers_idxs;
@@ -288,7 +293,7 @@ void CTB::read_CTB(wstring fname)
     uint32_t layeri_add, layeri_len;
 
     this->m_layer_width = layer_width;
-    this->m_layer_height = layer_heigth;   
+    this->m_layer_height = layer_heigth;
     
     int k = 0;
     for (auto it = layer_headers.begin(); it != layer_headers.end(); ++it) 
@@ -331,8 +336,8 @@ void CTB::read_CTB(wstring fname)
 
     std::cout << "Finished processing header information ..." << std::endl;
 
-    this->m_no_layers = m_layer_i_addr.size();
-
+    this->m_no_layers = (uint16_t) m_layer_i_addr.size();
+    
     std::cout << "Total no of layers: " << m_no_layers << std::endl;
 
     fclose(stream);
@@ -390,7 +395,7 @@ vector<ctbLayer> CTB::get_all_layers()
             uint32_t pos = m_layer_i_addr[i];
             uint32_t len = m_layer_i_len[i];
 
-            for (int j = pos; j < len + pos; j++)
+            for (uint32_t j = pos; j < len + pos; j++)
             {
                 lyr_data.push_back(file_vec[j]);
             }
@@ -632,63 +637,6 @@ uint32_t CTB::decode(std::vector<uint8_t>::iterator& it, int numbytes)
 }
 
 
-layer_bmp CTB::encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int res) 
-{
-    int numx = (int) ceil(area.width  * 1. / res);
-    int numy = (int) ceil(area.height * 1. / res);
-    int ct_len = numx * numy / NBITS;
-    ct_len = (ct_len < AES_BLOCKLEN) ? AES_BLOCKLEN : ct_len;
-    layer_bmp out;
-    image.copyTo(out.layer_pt);
-
-    cv::Mat pi = image(area); //Plain Text Selected Area
-
-    // We define is just and empty plain text, so that we carry the XOR operation outside of the function
-    std::vector<uint8_t> pt(ct_len);  
-    std::vector<uint8_t> enc = aes_ctr(pt, key, ictr);
-
-    //Map the encrypted text to a bmp using 1 px = 1 bit 
-    cv::Mat enci = enc2bmp(enc,area.size(),res);
-    
-
-    //Build encrypting layer image.
-    cv::Mat layer_enc(image.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
-    cv::Mat submat1 = layer_enc(area);
-    enci.copyTo(submat1);
-    layer_enc.copyTo(out.layer_enc);
-
-
-    //Encryption of pt and build encrypted image
-    cv::Mat layer_ct(image.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
-    image.copyTo(layer_ct);
-    cv::bitwise_xor(image, layer_enc, layer_ct);
-    layer_ct.copyTo(out.layer_ct);
-
-     return out;
-}
-
-
-//Maps a every bit of the input to a binary image of size area*res
-cv::Mat CTB::enc2bmp(std::vector<uint8_t> enc, cv::Size area, int res) 
-{
-    cv::Mat enci(area.width, area.height, CV_8UC3);
-    int numx = (int)ceil(area.width * 1. / res);
-
-    for (int y = 0; y < area.height; y++) {
-        for (int x = 0; x < area.width; x++) {
-            uint8_t biti = (y / res) * numx + x / res;
-            uint8_t byte_pos = biti / NBITS;
-            uint8_t bit_pos = biti % NBITS;
-            uint8_t ip = ((enc[byte_pos] >> bit_pos) & 0x01);
-            uint8_t op = ((enc[byte_pos] >> bit_pos) & 0x01) ? 0xFF : 0x00;
-            cv::Vec3b color(op, op, op);
-            enci.at<cv::Vec3b>(cv::Point(x, y)) = color;
-        }
-    }
-    return enci;
-}
-
-
 
 ctbLayer CTB::encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv)
 {
@@ -839,11 +787,11 @@ ctbLayer CTB::encode_rle7_byte(vector<uint8_t>& unencoded)
                     encoded.push_back(static_cast<uint8_t>(runlen));
                 else if (runlen < 0x10000000)       // 2 ^ 28 (max acceptable runlen)
                 {
-                    //uint8_t n;
-                    //if (runlen < 0x4000) n = 2;          // 2 ^ 14
-                    //else if (runlen < 0x200000) n = 3;   // 2 ^ 21
-                    //else n = 4;                          // 2 ^ 28
-                    uint8_t n = (32 - _lzcnt_u32(runlen)) / CHAR_BIT + 1;
+                    uint8_t n;
+                    if (runlen < 0x4000) n = 2;          // 2 ^ 14
+                    else if (runlen < 0x200000) n = 3;   // 2 ^ 21
+                    else n = 4;                          // 2 ^ 28
+                    //uint8_t n = (32 - _lzcnt_u32(runlen)) / CHAR_BIT + 1;
 
                     encoded.push_back(     (runlen>> ((n-1)* CHAR_BIT))     |     ((uint8_t)(0xE00 >> n) & 0xF0)    );
                     for (uint8_t j = n-1; j>0; j--)
@@ -868,12 +816,12 @@ ctbLayer CTB::encode_rle7_byte(vector<uint8_t>& unencoded)
         encoded.push_back(static_cast<uint8_t>(runlen));
     else if (runlen < 0x10000000)            // 2 ^ 28 (max acceptable runlen)
     {
-        //uint8_t n;
-        //if (runlen < 0x4000) n = 2;          // 2 ^ 14
-        //else if (runlen < 0x200000) n = 3;   // 2 ^ 21
-        //else n = 4;                          // 2 ^ 28
+        uint8_t n;
+        if (runlen < 0x4000) n = 2;          // 2 ^ 14
+        else if (runlen < 0x200000) n = 3;   // 2 ^ 21
+        else n = 4;                          // 2 ^ 28
 
-        uint8_t n =  (32 - _lzcnt_u32(runlen))/ CHAR_BIT+1;
+        //uint8_t n =  (32 - _lzcnt_u32(runlen))/ CHAR_BIT+1;
         encoded.push_back((runlen >> ((n - 1) * CHAR_BIT)) | ((uint8_t)(0xE00 >> n) & 0xF0));
         for (uint8_t j = n - 1; j > 0; j--)
             encoded.push_back(runlen >> ((j - 1) * CHAR_BIT));
@@ -976,7 +924,7 @@ ctbLayer CTB::decode_rle7_byte(vector<uint8_t>& encoded)
         if (run)
         {
             run_length = get_runlen(it);
-            for (int i = 0; i < run_length; i++)
+            for (uint32_t i = 0; i < run_length; i++)
             {
                 decoded.push_back(pixel);
             }
@@ -1298,3 +1246,27 @@ void CTB::add_layer_to_ctb(
     
 }
 
+printer_prop    CTB::getPrinterProperties() {
+    printer_prop pprop;
+
+    pprop.nlayers         = this->m_no_layers;
+    pprop.layer_height_mm = *(float*)(&this->main_header[8]);    // layer height setting used at slicing, in millimeters
+    pprop.exposure_s      = *(float*)(&this->main_header[9]);    // exposure time setting used at slicing
+    pprop.bot_exposure_s  = *(float*)(&this->main_header[10]);    // bottom exposure time setting used at slicing
+    pprop.light_off_time_s= *(float*)(&this->main_header[11]);    // light off time setting used at slicing
+    pprop.bot_layer_count = this->main_header[12];    // number of layers configured as "bottom."
+    pprop.level_set_count = this->main_header[23];   // number of times each layer image is repeated in the file.
+    pprop.width = this->m_layer_height;              // layer size in x direction in pixels (width in the image is the height in the layer)
+    pprop.height = this->m_layer_width;              // layer size in y direction in pixels
+
+    // Fields in Header ExtConfig
+    pprop.bot_lift_dist_mm    = *(float*)(&this->print_header[0]); // distance to lift the build platform away from the vat after bottom layers
+    pprop.bot_lift_speed_mmpm = *(float*)(&this->print_header[1]); // speed at which to lift the build platform away from the vat after bottom layers
+    pprop.lift_dist_mm        = *(float*)(&this->print_header[2]); // distance to lift the build platform away from the vat after normal layers
+    pprop.lift_speed_mmpm     = *(float*)(&this->print_header[3]); // speed at which to lift the build platform away from the vat after normal layers
+    pprop.retract_speed_mmpm  = *(float*)(&this->print_header[4]); // speed to use when the build platform re-approaches the vat after lift
+    pprop.bot_light_off_time_s= *(float*)(&this->print_header[9]); // bottom light off time setting used at slicing
+
+
+    return pprop;
+}

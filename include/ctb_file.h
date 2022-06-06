@@ -28,7 +28,8 @@
 #define PRDATASIZE 2        // Size of preview data in bytes
 #define LDATASIZE  36       // 
 
-#define HEADERCNT   28
+#define HEADERCNT   28      // Size of the main header parameters
+#define PHEADERCNT  11      // Size of print properties header know parameters (ExtConfig)
 #define HEADERSIZE (HDATASIZE*HEADERCNT)
 #define BUFFERSIZE  36
 
@@ -53,12 +54,6 @@ constexpr int BITMAP_HEADER_SIZE_DEPTH_24 = 54;
 //vector<uint8_t> with data from a layer image enconded using RLE7  
 typedef  std::vector<uint8_t> ctbLayer;
 
-
-std::string wstr2str(const std::wstring& wstr);
-void print_layer_hex(const std::vector<uint8_t>& layer_data);
-
-
-
 struct layer_bmp 
 {
     cv::Mat layer_pt;   //Bitmap of the layer information [plain text]
@@ -66,6 +61,33 @@ struct layer_bmp
     cv::Mat layer_enc;  //Bitmap of the decrypting layer (for the LCD decryptor)
 };
 
+// Printer properties, these can be acquired from the headers of the CTB file
+struct printer_prop
+{
+    //Fields in Main Header
+    float layer_height_mm = 0.1f;       // layer height setting used at slicing, in millimeters
+    float exposure_s = 15.f;            // exposure time setting used at slicing
+    float bot_exposure_s = 50.f;        // bottom exposure time setting used at slicing
+    float light_off_time_s = 0.f;       // light off time setting used at slicing
+    float bot_light_off_time_s = 0.f;   // bottom light off time setting used at slicing
+    uint32_t bot_layer_count = 10;      // number of layers configured as "bottom."
+    uint32_t level_set_count = 0;       // number of times each layer image is repeated in the file.
+
+    // Fields in Header ExtConfig
+    float bot_lift_dist_mm = 5.f;        // distance to lift the build platform away from the vat after bottom layers
+    float bot_lift_speed_mmpm = 60.f;    // speed at which to lift the build platform away from the vat after bottom layers
+    float lift_dist_mm = 5.f;            // distance to lift the build platform away from the vat after normal layers
+    float lift_speed_mmpm = 60.f;        // speed at which to lift the build platform away from the vat after normal layers
+    float retract_speed_mmpm = 150.f;    // speed to use when the build platform re-approaches the vat after lift
+    uint32_t width  = 2560;              // layer size in y direction in pixels
+    uint32_t height = 1440;              // layer size in x direction in pixels
+
+    // Fields Calculated
+    uint16_t nlayers = 480;
+};
+
+std::string wstr2str(const std::wstring& wstr);
+void print_layer_hex(const std::vector<uint8_t>& layer_data);
 
 class CTB
 {
@@ -104,9 +126,8 @@ class CTB
   
         inline uint32_t get_runlen(std::vector<uint8_t>::iterator& it);
         uint32_t    decode  (std::vector<uint8_t>::iterator& it, int numbytes);
-        cv::Mat     enc2bmp (std::vector<uint8_t> enc, cv::Size area, int res);
+        
         ctbLayer    encrypt_decrypt_86(std::vector<uint8_t> data, uint32_t iv);
-        layer_bmp   encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint64_t ictr, int resolution);
         inline void push_encoded(std::vector<uint8_t>& encoded, std::bitset<8>::reference& c, uint32_t runlen, std::bitset<2>& ref);
 
         void        decrypt_ctb_file(std::wstring output);
@@ -115,13 +136,13 @@ class CTB
 
         std::ofstream   create_ctb(const std::vector<uint8_t>& header, std::string ctbfname);
         void            add_layer_to_ctb(std::ofstream& ctbstrm, const std::vector<uint8_t>& layer_data, const std::uint32_t len_addr);
-        
+        printer_prop    getPrinterProperties();
     private:
 
         bool m_read;
-        int m_no_layers;
-        int m_layer_width;
-        int m_layer_height;
+        uint16_t m_no_layers;
+        uint16_t m_layer_width;
+        uint16_t m_layer_height;
 
         std::string m_ctb_fname;
         uint32_t m_encrypt_key;
@@ -132,6 +153,8 @@ class CTB
         cv::Mat m_preview2;
 
         std::vector<uint8_t>        m_header;
+        uint32_t                    main_header[HEADERCNT];
+        uint32_t                    print_header[PHEADERCNT];
         std::vector<ctbLayer>       m_layer_data;
         std::vector<std::uint32_t>  m_layer_i_len;
         std::vector<std::uint32_t>  m_layer_i_addr;
