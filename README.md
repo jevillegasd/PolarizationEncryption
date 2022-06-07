@@ -16,29 +16,6 @@ At this stage, the image output needs to be selected for the keyboard to work.
 Because we are using the AES engine in counter mode, the software does not need access to the encrypted image to send the decryption masks (decryption is done directly by the printer), however, the user needs to input correctly the decryption area, voxel size, nonce, and secret key.
 
 
-<!-----
-
-Yay, no errors, warnings, or alerts!
-
-Conversion time: 0.928 seconds.
-
-
-Using this Markdown file:
-
-1. Paste this output into your source file.
-2. See the notes and action items below regarding this conversion run.
-3. Check the rendered output (headings, lists, code blocks, tables) for proper
-   formatting and use a linkchecker before you publish this page.
-
-Conversion notes:
-
-* Docs to Markdown version 1.0β33
-* Tue Jun 07 2022 09:33:49 GMT-0700 (PDT)
-* Source doc: randz
-* Tables are currently converted to HTML tables.
------>
-
-
 ## FILE PROCESSING STEPS
 
 _Load File:_ the file is parsed according to the format described in [this GitHub Repository](https://github.com/cbiffle/catibo/blob/master/doc/cbddlp-ctb.adoc). The linked repository provides extensive information about the file format.

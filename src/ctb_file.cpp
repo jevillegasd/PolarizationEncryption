@@ -7,6 +7,7 @@
 using namespace std;
 
 // -- For Debugging
+// 
 void print_layer_hex(const vector<uint8_t>& layer_data)
 {
     for (int i = 0; i < layer_data.size(); i++)
