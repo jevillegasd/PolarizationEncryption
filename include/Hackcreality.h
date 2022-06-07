@@ -22,17 +22,19 @@ const std::string STRMAINMENU("\nHack Creality main menu. Select an option. "
     "\n\t7 - Display test image."       "\n\t8 - Test RLE enconding."
     "\n\tQ - Exit.\n>> ");
 
+
+// -- AES encryption properties
 struct encryption_prop 
-{
 
     uint8_t key[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF };
     uint64_t nonce = 0;
-    int extract_dim = 50;  // Dimension of the square area encrypted
+    int extract_dim = 50;  // Dimension of the square area to be encrypted
     int i_inilayer = 0, i_endLayer = 10; // First and last layers to encrypt
     int res = 10;           // 2D resolution of the encryption in pixels
     cv::Rect area;
 };
+
 
 struct screens
 {
@@ -57,6 +59,7 @@ struct screens
         EnumDisplayMonitors(0, 0, MonitorEnum, (LPARAM)this);
     }
 };
+
 
 int openFileDialog(std::wstring* file_name);
 cv::Mat rotateImage(cv::Mat image, double angle);

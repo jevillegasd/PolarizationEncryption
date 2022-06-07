@@ -643,7 +643,7 @@ layer_bmp CTB::encrypt_area(cv::Mat image, cv::Rect area, uint8_t key[16], uint6
 
     cv::Mat pi = image(area); //Plain Text Selected Area
 
-    // We define is just and empty plain text, so that we carry the XOR operation outside of the function
+    // We define an empty plain text, so that we carry the XOR operation outside of the function
     std::vector<uint8_t> pt(ct_len);  
     std::vector<uint8_t> enc = aes_ctr(pt, key, ictr);
 
@@ -1209,7 +1209,6 @@ ctbLayer CTB::get_file_header()
     if (m_read)
     {
         return m_header;
-
     }
     else
     {

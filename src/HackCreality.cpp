@@ -418,35 +418,10 @@ int generateDecryptorImages(CTB& myCtb , encryption_prop prop, filesystem::path 
             //my_layer_bmp.layer_ct   = imlayer;
             //my_layer_bmp.layer_pt   = imlayer;
             //my_layer_bmp.layer_enc  = cv::Mat(imlayer.size(), CV_8UC3, cv::Scalar(0x00, 0x00, 0x00));
-            layer2file = layer;//myCtb.encode_rle7(my_layer_bmp.layer_ct);
+            layer2file = layer; //myCtb.encode_rle7(my_layer_bmp.layer_ct);
         }
 
-        //**********************************************************
-        // -- Backward conversion ctbLayer to cv::Mat
-        /*Mat imlayer22   = myCtb.getLayerImageRL7(myCtb.decode_rle7_byte(layer2file), im_width, im_heigth);
-
-        auto test       = myCtb.encode_rle7(imlayer22);
-
-        std::cout << "Layer " << layer_no << std::endl;
-        print_layer_hex(layer2file);
-        std::cout << "\n";
-        print_layer_hex(test);
-
-        std::cout << "\n\n";*/
-
-        // --Test if the conversion backand forth between cv::Matand ctbLayer introduces any errors.
-            //    The image printed should be the same as that of my_layer_bmp.layer_ct if there are no 
-            //    problems introduced during conversion.
-        //Generate the RLE7 description of the generate image
-       /* displayimage(my_layer_bmp.layer_ct, window_name);
-        waitKey(10);*/
-        /*displayimage(imlayer22, window_name);
-        waitKey(10);*/
-        //***************************************************************
-
-
-       // Encrypt layer and then write the layer to the ctb file;
-        //vector<uint8_t> x86encrypted_ctLayer = myCtb.encrypt_decrypt_86(layer2file, layer_no - 1);
+        
         
         myCtb.add_layer_to_ctb(newCTB, layer2file, layer_len_addrs[layer_no - 1]);
 
