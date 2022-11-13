@@ -1,4 +1,10 @@
-# HackCreality
+# Polarization Encryption using Liquid Crystal Doublets
+This project shows an application of polarization encryption using liquid crystal (LC) doublets (a sandwich of two LC arrays between two othogonal polarizers). The project uses the hardware from a Creality LD-002R resin 3D printer to drive the doublet.  The documentation in this site provides a description of the interface with Chitu based Slice Files and the code in this repository allows the modification of original Slice files (*.obj) to have arbitrary trasnformations of each information layer sent to the printer. 
+
+A liquid crystal based polarization system needs two independenet drivers to run each of the LC layers. In the specific implementation in this project, one layer is controlled by the creality printer while the second is controlled by the user computer, this configuration enables to carry an XOR operation in the physical domain (i.e. a rotation of the poalrization state of the light that is used to cure the resin) without sharing information with the printer's hardware or software. This condition is sufficient to prevent any sofwtare based attacks on the printer to get access to sensitive IP,  provided correct ciphers are used from the start to protect the data.
+
+## Preamble
+
 This project allows for the modification of layer data in .obj slice files for resin 3D printers using Chitubox. The system reads and decomposes the file into the individual slices that correspond to each of the masks that the printer uses to expose each layer and allows for the encryption of an individual layer using AES-128 in counter mode. The user can define the AES key, and the nonce and the AES engine use the layer number as part of the counter to ensure that each layer is uniquely encrypted.
 
 ## USE
